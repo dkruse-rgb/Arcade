@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Railroad Signal Match</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      text-align: center;
+      padding: 2rem 1rem 3rem;
+    }
+    h1 { margin-bottom: 0.5rem; }
+    p { color: #94a3b8; }
+    .grid {
+      max-width: 720px;
+      margin: 2rem auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+    .matched {
+      background: #14532d;
+      border-color: #22c55e;
+    }
+    a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Railroad Signal Match</h1>
+  <p>Match the signal names. This is the starter version.</p>
+  <div id="status">Matches found: 0</div>
+  <div class="grid" id="grid"></div>
+  <p><a href="../../index.html">Back to Arcade of Dustin</a></p>
+
+  <script>
+    const signals = ['Clear', 'Approach', 'Stop', 'Restricting'];
+    const deck = [...signals, ...signals]
+      .sort(() => Math.random() - 0.5)
+      .map((name, index) => ({ id: index, name, matched: false }));
+
+    const grid = document.getElementById('grid');
+    const status = document.getElementById('status');
+    let selected = [];
+    let matches = 0;
+
+    function render() {
+      grid.innerHTML = '';
+      deck.forEach(card => {
+        const isShown = selected.includes(card.id) || card.matched;
+        const div = document.createElement('button');
+        div.className = 'card' + (card.matched ? ' matched' : '');
+        div.textContent = isShown ? card.name : '?';
+        div.disabled = card.matched;
+        div.addEventListener('click', () => choose(card.id));
+        grid.appendChild(div);
+      });
+      status.textContent = `Matches found: ${matches}`;
+    }
+
+    function choose(id) {
+      if (selected.includes(id) || selected.length === 2) return;
+      selected.push(id);
+      render();
+      if (selected.length === 2) {
+        const [a, b] = selected.map(i => deck.find(c => c.id === i));
+        if (a.name === b.name) {
+          a.matched = true;
+          b.matched = true;
+          matches += 1;
+          selected = [];
+          render();
+        } else {
+          setTimeout(() => {
+            selected = [];
+            render();
+          }, 700);
+        }
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
