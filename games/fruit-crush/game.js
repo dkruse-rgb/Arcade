@@ -18,6 +18,7 @@ const FRUITS = [
 const FRUIT_LOOKUP = Object.fromEntries(FRUITS.map((fruit) => [fruit.type, fruit]));
 
 const boardElement = document.getElementById('board');
+const boardShellElement = document.querySelector('.board-shell');
 const levelValueElement = document.getElementById('level-value');
 const scoreValueElement = document.getElementById('score-value');
 const bombValueElement = document.getElementById('bomb-value');
@@ -434,6 +435,30 @@ async function animateScorePop(scorePop) {
   });
 }
 
+async function animateBoardShake(bombCount) {
+  if (!boardShellElement || bombCount <= 0) {
+    return;
+  }
+
+  const intensity = Math.min(4 + bombCount * 1.5, 12);
+
+  await boardShellElement.animate(
+    [
+      { transform: 'translate3d(0, 0, 0)' },
+      { transform: `translate3d(${intensity}px, -2px, 0)` },
+      { transform: `translate3d(${-intensity}px, 2px, 0)` },
+      { transform: `translate3d(${intensity * 0.7}px, 0, 0)` },
+      { transform: `translate3d(${-intensity * 0.7}px, 0, 0)` },
+      { transform: `translate3d(${intensity * 0.35}px, 0, 0)` },
+      { transform: 'translate3d(0, 0, 0)' }
+    ],
+    {
+      duration: 360,
+      easing: 'ease-out'
+    }
+  ).finished;
+}
+
 function buildResolution({ matchSet = new Set(), initialBombs = [] }) {
   const cleared = new Set(matchSet);
   const bombQueue = [...initialBombs];
@@ -686,7 +711,8 @@ async function resolveBoard(initialResolutionInput = null) {
     renderAll();
     await Promise.all([
       animateFruitFlights(resolution.flights),
-      animateScorePop(resolution.scorePop)
+      animateScorePop(resolution.scorePop),
+      animateBoardShake(resolution.bombCount)
     ]);
     await wait(120);
 
