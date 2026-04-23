@@ -22,6 +22,8 @@ const scoreValueElement = document.getElementById('score-value');
 const bombValueElement = document.getElementById('bomb-value');
 const meterLabelElement = document.getElementById('meter-label');
 const meterFillElement = document.getElementById('meter-fill');
+const meterInlineLabelElement = document.getElementById('meter-inline-label');
+const meterInlineFillElement = document.getElementById('meter-inline-fill');
 const unlockTextElement = document.getElementById('unlock-text');
 const newGameButton = document.getElementById('new-game-button');
 const overlayElement = document.getElementById('board-overlay');
@@ -382,11 +384,16 @@ function renderBoard() {
 }
 
 function renderHud() {
+  const meterText = `${state.meter} / ${state.meterGoal}`;
+  const meterPercent = `${(state.meter / state.meterGoal) * 100}%`;
+
   levelValueElement.textContent = String(state.level);
   scoreValueElement.textContent = String(state.score);
   bombValueElement.textContent = String(state.bombsDetonated);
-  meterLabelElement.textContent = `${state.meter} / ${state.meterGoal}`;
-  meterFillElement.style.width = `${(state.meter / state.meterGoal) * 100}%`;
+  meterLabelElement.textContent = meterText;
+  meterFillElement.style.width = meterPercent;
+  meterInlineLabelElement.textContent = meterText;
+  meterInlineFillElement.style.width = meterPercent;
 
   const nextFruit = getNextLockedFruit(state.level);
   if (nextFruit) {
