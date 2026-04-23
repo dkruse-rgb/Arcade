@@ -20,7 +20,20 @@
           <h1>Fruit Crush</h1>
           <p class="subtitle">Match fruit, trigger bombs, and fill the level meter to move on.</p>
         </div>
-        <div class="level-pill">Level <span id="level-value">1</span></div>
+
+        <div class="title-status">
+          <div class="level-pill">Level <span id="level-value">1</span></div>
+
+          <section class="inline-meter-card" aria-label="Level progress">
+            <div class="inline-meter-head">
+              <span>Progress</span>
+              <strong id="meter-inline-label">0 / 80</strong>
+            </div>
+            <div class="inline-meter-track" aria-hidden="true">
+              <div id="meter-inline-fill" class="meter-fill"></div>
+            </div>
+          </section>
+        </div>
       </div>
 
       <div class="board-shell">
