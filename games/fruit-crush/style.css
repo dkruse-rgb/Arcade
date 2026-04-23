@@ -92,11 +92,16 @@ a {
 }
 
 .title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.title-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .eyebrow,
@@ -138,8 +143,38 @@ h1 {
   font-weight: 700;
 }
 
+.inline-meter-card {
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 22px;
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+}
+
+.inline-meter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.inline-meter-head span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.inline-meter-track {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--track);
+  box-shadow: inset 0 2px 6px rgba(2, 6, 23, 0.45);
+}
+
 .board-shell {
   position: relative;
+  isolation: isolate;
   border-radius: 28px;
   padding: 1rem;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.96));
@@ -147,6 +182,8 @@ h1 {
 }
 
 .board {
+  position: relative;
+  z-index: 1;
   width: min(100%, calc(100vw - 2.4rem));
   max-width: 640px;
   margin: 0 auto;
@@ -235,9 +272,11 @@ h1 {
 .board-overlay {
   position: absolute;
   inset: 0;
+  z-index: 10;
   display: grid;
   place-items: center;
-  background: rgba(2, 6, 23, 0.66);
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(10px);
   border-radius: 28px;
 }
 
@@ -246,22 +285,26 @@ h1 {
 }
 
 .overlay-card {
-  width: min(88%, 360px);
+  position: relative;
+  z-index: 11;
+  width: min(86%, 420px);
   padding: 1.35rem;
-  border-radius: 24px;
+  border-radius: 26px;
   text-align: center;
-  background: rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(125, 211, 252, 0.2);
+  background: rgba(7, 17, 31, 0.98);
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  box-shadow: 0 24px 44px rgba(2, 6, 23, 0.42);
 }
 
 .overlay-card h2 {
   margin-top: 0.35rem;
-  font-size: 2rem;
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  line-height: 1;
 }
 
 .overlay-card p {
   margin-top: 0.7rem;
-  color: var(--muted);
+  color: #d7e5f7;
   line-height: 1.5;
 }
 
@@ -372,14 +415,13 @@ h1 {
   }
 
   .topbar,
-  .title-row,
   .meter-head {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .level-pill {
-    align-self: flex-start;
+  .title-status {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .board-shell {
@@ -404,6 +446,15 @@ h1 {
     font-size: clamp(1rem, 6vw, 1.55rem);
   }
 
+  .overlay-card {
+    width: min(90%, 340px);
+    padding: 1.05rem;
+  }
+
+  .overlay-card p {
+    font-size: 0.98rem;
+  }
+
   .hud-panel {
     grid-template-columns: 1fr;
   }
@@ -412,6 +463,14 @@ h1 {
 @media (max-width: 480px) {
   .app-shell {
     padding: 0.55rem;
+  }
+
+  .title-status {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-meter-card {
+    padding: 0.7rem 0.8rem;
   }
 
   .board-shell {
@@ -438,6 +497,10 @@ h1 {
 
   .piece {
     font-size: clamp(0.92rem, 5.8vw, 1.3rem);
+  }
+
+  .overlay-card {
+    width: min(92%, 300px);
   }
 
   .stat-card strong {
