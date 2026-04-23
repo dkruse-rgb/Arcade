@@ -439,7 +439,8 @@ h1 {
   will-change: transform, opacity;
 }
 
-.score-pop {
+.score-pop,
+.combo-pop {
   position: fixed;
   left: 0;
   top: 0;
@@ -465,6 +466,13 @@ h1 {
   color: #fff7ed;
   background: linear-gradient(90deg, rgba(251, 146, 60, 0.96), rgba(244, 63, 94, 0.94));
   border: 1px solid rgba(254, 215, 170, 0.34);
+}
+
+.combo-pop {
+  color: #fff7ed;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.96), rgba(249, 115, 22, 0.94));
+  border: 1px solid rgba(254, 240, 138, 0.45);
+  letter-spacing: 0.02em;
 }
 
 @keyframes meter-pulse {
@@ -622,7 +630,8 @@ h1 {
     width: min(92%, 300px);
   }
 
-  .score-pop {
+  .score-pop,
+  .combo-pop {
     font-size: 0.92rem;
   }
 
