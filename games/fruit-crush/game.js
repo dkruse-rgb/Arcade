@@ -2,6 +2,7 @@ const BOARD_SIZE = 8;
 const LEVEL_GOAL_START = 80;
 const LEVEL_GOAL_STEP = 30;
 const SWIPE_THRESHOLD = 18;
+const MAX_FRUIT_FLIGHTS = 12;
 
 const FRUITS = [
   { type: 'apple', label: 'Apple', emoji: '🍎', unlockLevel: 1 },
@@ -24,12 +25,18 @@ const meterLabelElement = document.getElementById('meter-label');
 const meterFillElement = document.getElementById('meter-fill');
 const meterInlineLabelElement = document.getElementById('meter-inline-label');
 const meterInlineFillElement = document.getElementById('meter-inline-fill');
+const meterInlineTrackElement = document.querySelector('.inline-meter-track');
+const meterTrackElement = document.querySelector('.meter-track');
 const unlockTextElement = document.getElementById('unlock-text');
 const newGameButton = document.getElementById('new-game-button');
 const overlayElement = document.getElementById('board-overlay');
 const overlayTitleElement = document.getElementById('overlay-title');
 const overlayTextElement = document.getElementById('overlay-text');
 const continueButton = document.getElementById('continue-button');
+
+const fxLayer = document.createElement('div');
+fxLayer.className = 'fx-layer';
+document.body.appendChild(fxLayer);
 
 const state = {
   board: [],
@@ -238,6 +245,117 @@ function getAdjacentBombs(matchSet) {
   return bombs;
 }
 
+function getTileElement(row, col) {
+  return boardElement.querySelector(`.tile[data-row="${row}"][data-col="${col}"]`);
+}
+
+function sampleFlightCandidates(candidates) {
+  if (candidates.length <= MAX_FRUIT_FLIGHTS) {
+    return candidates;
+  }
+
+  const step = candidates.length / MAX_FRUIT_FLIGHTS;
+  const sampled = [];
+
+  for (let index = 0; index < MAX_FRUIT_FLIGHTS; index += 1) {
+    sampled.push(candidates[Math.floor(index * step)]);
+  }
+
+  return sampled;
+}
+
+function createFruitFlights(candidates) {
+  if (!meterInlineTrackElement) {
+    return [];
+  }
+
+  const meterRect = meterInlineTrackElement.getBoundingClientRect();
+  const sampledCandidates = sampleFlightCandidates(candidates);
+
+  return sampledCandidates
+    .map((candidate, index) => {
+      const tileElement = getTileElement(candidate.row, candidate.col);
+      if (!tileElement) {
+        return null;
+      }
+
+      const tileRect = tileElement.getBoundingClientRect();
+      const targetX = meterRect.left + Math.min(
+        meterRect.width - 18,
+        18 + (index / Math.max(sampledCandidates.length - 1, 1)) * Math.max(meterRect.width - 36, 0)
+      );
+      const targetY = meterRect.top + meterRect.height / 2;
+
+      return {
+        emoji: FRUIT_LOOKUP[candidate.type].emoji,
+        startX: tileRect.left + tileRect.width / 2,
+        startY: tileRect.top + tileRect.height / 2,
+        endX: targetX,
+        endY: targetY,
+        size: Math.max(22, Math.min(tileRect.width * 0.72, 38))
+      };
+    })
+    .filter(Boolean);
+}
+
+async function animateFruitFlights(flights) {
+  if (!flights.length) {
+    return;
+  }
+
+  meterInlineTrackElement?.classList.add('is-pulsing');
+  meterTrackElement?.classList.add('is-pulsing');
+
+  const animationPromises = flights.map((flight, index) => {
+    return new Promise((resolve) => {
+      const fruitElement = document.createElement('div');
+      fruitElement.className = 'flying-fruit';
+      fruitElement.textContent = flight.emoji;
+      fruitElement.style.width = `${flight.size}px`;
+      fruitElement.style.height = `${flight.size}px`;
+      fruitElement.style.fontSize = `${flight.size * 0.78}px`;
+      fxLayer.appendChild(fruitElement);
+
+      const apexY = Math.min(flight.startY, flight.endY) - (48 + Math.random() * 28);
+      const midpointX = (flight.startX + flight.endX) / 2 + (Math.random() * 32 - 16);
+
+      const animation = fruitElement.animate(
+        [
+          {
+            transform: `translate(${flight.startX - flight.size / 2}px, ${flight.startY - flight.size / 2}px) scale(1) rotate(0deg)`,
+            opacity: 1
+          },
+          {
+            transform: `translate(${midpointX - flight.size / 2}px, ${apexY - flight.size / 2}px) scale(1.15) rotate(${Math.random() * 20 - 10}deg)`,
+            opacity: 1,
+            offset: 0.45
+          },
+          {
+            transform: `translate(${flight.endX - flight.size / 2}px, ${flight.endY - flight.size / 2}px) scale(0.28) rotate(${Math.random() * 40 - 20}deg)`,
+            opacity: 0.18
+          }
+        ],
+        {
+          duration: 560,
+          delay: index * 42,
+          easing: 'cubic-bezier(0.22, 0.9, 0.31, 1)',
+          fill: 'forwards'
+        }
+      );
+
+      animation.onfinish = () => {
+        fruitElement.remove();
+        resolve();
+      };
+    });
+  });
+
+  await Promise.all(animationPromises);
+
+  meterInlineTrackElement?.classList.remove('is-pulsing');
+  meterTrackElement?.classList.remove('is-pulsing');
+}
+
 function clearMatchesAndBombs(matchSet) {
   const cleared = new Set(matchSet);
   const bombQueue = getAdjacentBombs(matchSet);
@@ -275,6 +393,7 @@ function clearMatchesAndBombs(matchSet) {
 
   let clearedFruitCount = 0;
   let bombCount = 0;
+  const flightCandidates = [];
 
   for (const clearedKey of cleared) {
     const [row, col] = coordsFromKey(clearedKey);
@@ -287,10 +406,13 @@ function clearMatchesAndBombs(matchSet) {
       bombCount += 1;
     } else {
       clearedFruitCount += 1;
+      flightCandidates.push({ row, col, type: piece.type });
     }
 
     state.board[row][col] = null;
   }
+
+  const flights = createFruitFlights(flightCandidates);
 
   state.score += clearedFruitCount * 10 + bombCount * 75;
   state.bombsDetonated += bombCount;
@@ -301,6 +423,8 @@ function clearMatchesAndBombs(matchSet) {
       state.pendingLevelUp = true;
     }
   }
+
+  return { clearedFruitCount, bombCount, flights };
 }
 
 function collapseBoard() {
@@ -429,9 +553,10 @@ async function resolveBoard() {
       break;
     }
 
-    clearMatchesAndBombs(matches);
+    const resolution = clearMatchesAndBombs(matches);
     renderAll();
-    await wait(170);
+    await animateFruitFlights(resolution.flights);
+    await wait(120);
 
     collapseBoard();
     refillBoard();
