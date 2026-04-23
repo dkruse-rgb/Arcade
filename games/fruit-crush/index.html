@@ -18,16 +18,21 @@
         <div>
           <p class="eyebrow">Swipe to match</p>
           <h1>Fruit Crush</h1>
-          <p class="subtitle">Match fruit, trigger bombs, and fill the level meter to move on.</p>
+          <p class="subtitle">Beat the clock, trigger bombs, and fill the meter before time runs out.</p>
         </div>
 
         <div class="title-status">
           <div class="level-pill">Level <span id="level-value">1</span></div>
 
+          <div id="timer-pill" class="timer-pill" aria-label="Time remaining">
+            <span>Time</span>
+            <strong id="time-value">2:00</strong>
+          </div>
+
           <section class="inline-meter-card" aria-label="Level progress">
             <div class="inline-meter-head">
               <span>Progress</span>
-              <strong id="meter-inline-label">0 / 80</strong>
+              <strong id="meter-inline-label">0 / 100</strong>
             </div>
             <div class="inline-meter-track" aria-hidden="true">
               <div id="meter-inline-fill" class="meter-fill"></div>
@@ -41,7 +46,7 @@
 
         <div id="board-overlay" class="board-overlay hidden" aria-live="polite">
           <div class="overlay-card">
-            <p class="overlay-eyebrow">Level cleared</p>
+            <p id="overlay-eyebrow" class="overlay-eyebrow">Level cleared</p>
             <h2 id="overlay-title">Level 2</h2>
             <p id="overlay-text">A fresh board is ready.</p>
             <button id="continue-button" class="primary-button" type="button">Keep Crushing</button>
@@ -65,7 +70,7 @@
       <section class="meter-card">
         <div class="meter-head">
           <span>Level meter</span>
-          <strong id="meter-label">0 / 80</strong>
+          <strong id="meter-label">0 / 100</strong>
         </div>
         <div class="meter-track" aria-hidden="true">
           <div id="meter-fill" class="meter-fill"></div>
@@ -76,10 +81,10 @@
       <section class="howto-card">
         <h2>How it works</h2>
         <ul>
+          <li>You have 2 minutes to score as high as possible.</li>
           <li>Swipe a fruit into a neighbor to make 3 or more in a line.</li>
-          <li>Bombs next to a matched group explode automatically.</li>
-          <li>Each bomb blast clears a 5×5 area.</li>
-          <li>Matching fruit and bomb blasts both fill the meter.</li>
+          <li>Swipe a bomb to detonate it instantly and chain other bombs in its 5×5 blast zone.</li>
+          <li>Bad swaps cost time, so every move matters.</li>
         </ul>
       </section>
     </aside>
