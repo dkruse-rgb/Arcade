@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fruit Crush | Arcade of Dustin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="game-panel">
+      <div class="topbar">
+        <a class="back-link" href="../../index.html">← Arcade of Dustin</a>
+        <button id="new-game-button" class="ghost-button" type="button">New Board</button>
+      </div>
+
+      <div class="title-row">
+        <div>
+          <p class="eyebrow">Swipe to match</p>
+          <h1>Fruit Crush</h1>
+          <p class="subtitle">Match fruit, trigger bombs, and fill the level meter to move on.</p>
+        </div>
+        <div class="level-pill">Level <span id="level-value">1</span></div>
+      </div>
+
+      <div class="board-shell">
+        <div id="board" class="board" aria-label="Fruit Crush game board"></div>
+
+        <div id="board-overlay" class="board-overlay hidden" aria-live="polite">
+          <div class="overlay-card">
+            <p class="overlay-eyebrow">Level cleared</p>
+            <h2 id="overlay-title">Level 2</h2>
+            <p id="overlay-text">A fresh board is ready.</p>
+            <button id="continue-button" class="primary-button" type="button">Keep Crushing</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="hud-panel">
+      <section class="stat-grid">
+        <article class="stat-card">
+          <span class="stat-label">Score</span>
+          <strong id="score-value">0</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Bombs</span>
+          <strong id="bomb-value">0</strong>
+        </article>
+      </section>
+
+      <section class="meter-card">
+        <div class="meter-head">
+          <span>Level meter</span>
+          <strong id="meter-label">0 / 80</strong>
+        </div>
+        <div class="meter-track" aria-hidden="true">
+          <div id="meter-fill" class="meter-fill"></div>
+        </div>
+        <p id="unlock-text" class="hint">More fruit can be added in later levels.</p>
+      </section>
+
+      <section class="howto-card">
+        <h2>How it works</h2>
+        <ul>
+          <li>Swipe a fruit into a neighbor to make 3 or more in a line.</li>
+          <li>Bombs next to a matched group explode automatically.</li>
+          <li>Each bomb blast clears a 5×5 area.</li>
+          <li>Matching fruit and bomb blasts both fill the meter.</li>
+        </ul>
+      </section>
+    </aside>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
