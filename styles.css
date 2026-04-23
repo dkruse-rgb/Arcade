@@ -134,8 +134,9 @@ main {
 
 .featured-image {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
   background: #020617;
 }
 
