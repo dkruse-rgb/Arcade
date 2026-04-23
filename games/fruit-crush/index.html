@@ -91,5 +91,26 @@
   </main>
 
   <script src="game-v3.js"></script>
+  <script>
+    (() => {
+      if (typeof advanceLevel !== 'function') return;
+      window.advanceLevel = function () {
+        if (state.timeExpired) {
+          showGameOverOverlay();
+          return;
+        }
+
+        state.level += 1;
+        state.meterGoal = LEVEL_GOAL_START + (state.level - 1) * LEVEL_GOAL_STEP;
+        state.meter = 0;
+        state.pendingLevelUp = false;
+        state.availableFruits = getAvailableFruits(state.level);
+        state.board = createStartingBoard();
+        hideOverlay();
+        renderAll();
+        startTimer(true);
+      };
+    })();
+  </script>
 </body>
 </html>
