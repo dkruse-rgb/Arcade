@@ -298,6 +298,43 @@ function createFruitFlights(candidates) {
     .filter(Boolean);
 }
 
+function createScorePopInfo(clearedKeys, scoreGain, bombCount) {
+  if (!scoreGain) {
+    return null;
+  }
+
+  const points = [];
+
+  for (const clearedKey of clearedKeys) {
+    const [row, col] = coordsFromKey(clearedKey);
+    const tileElement = getTileElement(row, col);
+    if (!tileElement) {
+      continue;
+    }
+
+    const tileRect = tileElement.getBoundingClientRect();
+    points.push({
+      x: tileRect.left + tileRect.width / 2,
+      y: tileRect.top + tileRect.height / 2
+    });
+  }
+
+  const fallbackRect = boardElement.getBoundingClientRect();
+  const averageX = points.length
+    ? points.reduce((sum, point) => sum + point.x, 0) / points.length
+    : fallbackRect.left + fallbackRect.width / 2;
+  const averageY = points.length
+    ? points.reduce((sum, point) => sum + point.y, 0) / points.length
+    : fallbackRect.top + fallbackRect.height / 2;
+
+  return {
+    x: averageX,
+    y: averageY,
+    text: bombCount > 0 ? `+${scoreGain} 💥` : `+${scoreGain}`,
+    variant: bombCount > 0 ? 'bomb' : 'fruit'
+  };
+}
+
 async function animateFruitFlights(flights) {
   if (!flights.length) {
     return;
@@ -356,16 +393,67 @@ async function animateFruitFlights(flights) {
   meterTrackElement?.classList.remove('is-pulsing');
 }
 
-function clearMatchesAndBombs(matchSet) {
+async function animateScorePop(scorePop) {
+  if (!scorePop) {
+    return;
+  }
+
+  await new Promise((resolve) => {
+    const scoreElement = document.createElement('div');
+    scoreElement.className = `score-pop score-pop--${scorePop.variant}`;
+    scoreElement.textContent = scorePop.text;
+    fxLayer.appendChild(scoreElement);
+
+    const animation = scoreElement.animate(
+      [
+        {
+          transform: `translate(${scorePop.x - 30}px, ${scorePop.y - 16}px) scale(0.8)`,
+          opacity: 0
+        },
+        {
+          transform: `translate(${scorePop.x - 30}px, ${scorePop.y - 46}px) scale(1.06)`,
+          opacity: 1,
+          offset: 0.28
+        },
+        {
+          transform: `translate(${scorePop.x - 30}px, ${scorePop.y - 96}px) scale(1)`,
+          opacity: 0
+        }
+      ],
+      {
+        duration: 820,
+        easing: 'cubic-bezier(0.18, 0.84, 0.32, 1)',
+        fill: 'forwards'
+      }
+    );
+
+    animation.onfinish = () => {
+      scoreElement.remove();
+      resolve();
+    };
+  });
+}
+
+function buildResolution({ matchSet = new Set(), initialBombs = [] }) {
   const cleared = new Set(matchSet);
-  const bombQueue = getAdjacentBombs(matchSet);
+  const bombQueue = [...initialBombs];
+  const queuedBombs = new Set(initialBombs.map(([row, col]) => keyFor(row, col)));
   const processedBombs = new Set();
+
+  for (const [row, col] of getAdjacentBombs(matchSet)) {
+    const bombKey = keyFor(row, col);
+    if (!queuedBombs.has(bombKey)) {
+      bombQueue.push([row, col]);
+      queuedBombs.add(bombKey);
+    }
+  }
 
   while (bombQueue.length > 0) {
     const [bombRow, bombCol] = bombQueue.shift();
     const bombKey = keyFor(bombRow, bombCol);
+    const bombPiece = state.board[bombRow]?.[bombCol];
 
-    if (processedBombs.has(bombKey)) {
+    if (processedBombs.has(bombKey) || !bombPiece || bombPiece.kind !== 'bomb') {
       continue;
     }
 
@@ -384,8 +472,9 @@ function clearMatchesAndBombs(matchSet) {
         const piece = state.board[nextRow][nextCol];
         cleared.add(blastKey);
 
-        if (piece && piece.kind === 'bomb' && !processedBombs.has(blastKey)) {
+        if (piece && piece.kind === 'bomb' && !queuedBombs.has(blastKey)) {
           bombQueue.push([nextRow, nextCol]);
+          queuedBombs.add(blastKey);
         }
       }
     }
@@ -412,9 +501,11 @@ function clearMatchesAndBombs(matchSet) {
     state.board[row][col] = null;
   }
 
+  const scoreGain = clearedFruitCount * 10 + bombCount * 75;
   const flights = createFruitFlights(flightCandidates);
+  const scorePop = createScorePopInfo(cleared, scoreGain, bombCount);
 
-  state.score += clearedFruitCount * 10 + bombCount * 75;
+  state.score += scoreGain;
   state.bombsDetonated += bombCount;
 
   if (!state.pendingLevelUp) {
@@ -424,7 +515,13 @@ function clearMatchesAndBombs(matchSet) {
     }
   }
 
-  return { clearedFruitCount, bombCount, flights };
+  return {
+    clearedCount: clearedFruitCount + bombCount,
+    scoreGain,
+    bombCount,
+    flights,
+    scorePop
+  };
 }
 
 function collapseBoard() {
@@ -462,6 +559,26 @@ function swapPieces(fromRow, fromCol, toRow, toCol) {
   const temp = state.board[fromRow][fromCol];
   state.board[fromRow][fromCol] = state.board[toRow][toCol];
   state.board[toRow][toCol] = temp;
+}
+
+function collectMovedBombs(fromRow, fromCol, toRow, toCol) {
+  const bombs = [];
+  const positions = [
+    [fromRow, fromCol],
+    [toRow, toCol]
+  ];
+  const seen = new Set();
+
+  for (const [row, col] of positions) {
+    const piece = state.board[row][col];
+    const bombKey = keyFor(row, col);
+    if (piece && piece.kind === 'bomb' && !seen.has(bombKey)) {
+      bombs.push([row, col]);
+      seen.add(bombKey);
+    }
+  }
+
+  return bombs;
 }
 
 function renderBoard() {
@@ -546,16 +663,31 @@ function hideLevelUpOverlay() {
   overlayElement.classList.add('hidden');
 }
 
-async function resolveBoard() {
+async function resolveBoard(initialResolutionInput = null) {
+  let pendingInput = initialResolutionInput;
+
   while (true) {
-    const matches = findMatches(state.board);
-    if (matches.size === 0) {
-      break;
+    let resolution;
+
+    if (pendingInput) {
+      resolution = buildResolution(pendingInput);
+      pendingInput = null;
+      if (!resolution.clearedCount) {
+        break;
+      }
+    } else {
+      const matches = findMatches(state.board);
+      if (matches.size === 0) {
+        break;
+      }
+      resolution = buildResolution({ matchSet: matches });
     }
 
-    const resolution = clearMatchesAndBombs(matches);
     renderAll();
-    await animateFruitFlights(resolution.flights);
+    await Promise.all([
+      animateFruitFlights(resolution.flights),
+      animateScorePop(resolution.scorePop)
+    ]);
     await wait(120);
 
     collapseBoard();
@@ -585,6 +717,12 @@ async function trySwap(fromRow, fromCol, toRow, toCol) {
   renderBoard();
   await wait(120);
 
+  const movedBombs = collectMovedBombs(fromRow, fromCol, toRow, toCol);
+  if (movedBombs.length > 0) {
+    await resolveBoard({ initialBombs: movedBombs });
+    return;
+  }
+
   const matches = findMatches(state.board);
   if (matches.size === 0) {
     swapPieces(fromRow, fromCol, toRow, toCol);
@@ -594,7 +732,7 @@ async function trySwap(fromRow, fromCol, toRow, toCol) {
     return;
   }
 
-  await resolveBoard();
+  await resolveBoard({ matchSet: matches });
 }
 
 function advanceLevel() {
