@@ -1,6 +1,8 @@
 const BOARD_SIZE = 8;
-const LEVEL_GOAL_START = 80;
-const LEVEL_GOAL_STEP = 30;
+const LEVEL_GOAL_START = 100;
+const LEVEL_GOAL_STEP = 35;
+const ROUND_TIME_SECONDS = 120;
+const INVALID_SWAP_PENALTY = 2;
 const SWIPE_THRESHOLD = 18;
 const MAX_FRUIT_FLIGHTS = 12;
 
@@ -20,6 +22,8 @@ const FRUIT_LOOKUP = Object.fromEntries(FRUITS.map((fruit) => [fruit.type, fruit
 const boardElement = document.getElementById('board');
 const boardShellElement = document.querySelector('.board-shell');
 const levelValueElement = document.getElementById('level-value');
+const timeValueElement = document.getElementById('time-value');
+const timerPillElement = document.getElementById('timer-pill');
 const scoreValueElement = document.getElementById('score-value');
 const bombValueElement = document.getElementById('bomb-value');
 const meterLabelElement = document.getElementById('meter-label');
@@ -31,6 +35,7 @@ const meterTrackElement = document.querySelector('.meter-track');
 const unlockTextElement = document.getElementById('unlock-text');
 const newGameButton = document.getElementById('new-game-button');
 const overlayElement = document.getElementById('board-overlay');
+const overlayEyebrowElement = document.getElementById('overlay-eyebrow');
 const overlayTitleElement = document.getElementById('overlay-title');
 const overlayTextElement = document.getElementById('overlay-text');
 const continueButton = document.getElementById('continue-button');
@@ -46,10 +51,14 @@ const state = {
   bombsDetonated: 0,
   meter: 0,
   meterGoal: LEVEL_GOAL_START,
+  timeLeft: ROUND_TIME_SECONDS,
+  timerId: null,
   busy: false,
   pendingLevelUp: false,
+  timeExpired: false,
   availableFruits: [],
-  swipeStart: null
+  swipeStart: null,
+  overlayMode: null
 };
 
 function keyFor(row, col) {
@@ -68,6 +77,77 @@ function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function formatTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function clearTimer() {
+  if (state.timerId) {
+    window.clearInterval(state.timerId);
+    state.timerId = null;
+  }
+}
+
+function showGameOverOverlay() {
+  state.overlayMode = 'gameover';
+  state.timeExpired = true;
+  state.pendingLevelUp = false;
+  clearTimer();
+  state.busy = false;
+  overlayEyebrowElement.textContent = "Time's up";
+  overlayTitleElement.textContent = 'Round Over';
+  overlayTextElement.textContent = `Final score: ${state.score}. You reached level ${state.level}. Tap below to jump back in.`;
+  continueButton.textContent = 'Play Again';
+  overlayElement.classList.remove('hidden');
+}
+
+function tickTimer() {
+  if (state.timeExpired || state.overlayMode === 'gameover') {
+    return;
+  }
+
+  state.timeLeft = Math.max(0, state.timeLeft - 1);
+  renderHud();
+
+  if (state.timeLeft === 0) {
+    clearTimer();
+    state.timeExpired = true;
+    if (!state.busy) {
+      showGameOverOverlay();
+    }
+  }
+}
+
+function startTimer(reset = false) {
+  clearTimer();
+  if (reset) {
+    state.timeLeft = ROUND_TIME_SECONDS;
+  }
+  renderHud();
+  if (state.timeLeft > 0 && !state.timeExpired) {
+    state.timerId = window.setInterval(tickTimer, 1000);
+  }
+}
+
+function applyTimePenalty(seconds) {
+  if (state.timeExpired) {
+    return;
+  }
+
+  state.timeLeft = Math.max(0, state.timeLeft - seconds);
+  renderHud();
+
+  if (state.timeLeft === 0) {
+    clearTimer();
+    state.timeExpired = true;
+    if (!state.busy) {
+      showGameOverOverlay();
+    }
+  }
+}
+
 function getAvailableFruits(level) {
   return FRUITS.filter((fruit) => fruit.unlockLevel <= level);
 }
@@ -77,7 +157,7 @@ function getNextLockedFruit(level) {
 }
 
 function getBombChance() {
-  return Math.min(0.04 + (state.level - 1) * 0.012, 0.12);
+  return Math.min(0.05 + (state.level - 1) * 0.015, 0.16);
 }
 
 function randomFruitPiece() {
@@ -654,6 +734,13 @@ function renderHud() {
   const meterPercent = `${(state.meter / state.meterGoal) * 100}%`;
 
   levelValueElement.textContent = String(state.level);
+  timeValueElement.textContent = formatTime(state.timeLeft);
+  timerPillElement.classList.remove('is-warning', 'is-danger');
+  if (state.timeLeft <= 15) {
+    timerPillElement.classList.add('is-danger');
+  } else if (state.timeLeft <= 30) {
+    timerPillElement.classList.add('is-warning');
+  }
   scoreValueElement.textContent = String(state.score);
   bombValueElement.textContent = String(state.bombsDetonated);
   meterLabelElement.textContent = meterText;
@@ -663,9 +750,9 @@ function renderHud() {
 
   const nextFruit = getNextLockedFruit(state.level);
   if (nextFruit) {
-    unlockTextElement.textContent = `Level ${state.level}: ${state.availableFruits.length} fruit types active. Next unlock: ${nextFruit.label} at level ${nextFruit.unlockLevel}.`;
+    unlockTextElement.textContent = `Level ${state.level}: ${state.availableFruits.length} fruit types active. Next unlock: ${nextFruit.label} at level ${nextFruit.unlockLevel}. Goal pressure rises every level.`;
   } else {
-    unlockTextElement.textContent = `All current fruit are unlocked. Bomb chance will keep ramping up as you climb.`;
+    unlockTextElement.textContent = `All current fruit are unlocked. Bomb chance and meter pressure keep ramping up as you climb.`;
   }
 }
 
@@ -677,14 +764,19 @@ function renderAll() {
 function showLevelUpOverlay() {
   const nextLevel = state.level + 1;
   const nextFruit = getNextLockedFruit(state.level);
+  state.overlayMode = 'level';
+  clearTimer();
+  overlayEyebrowElement.textContent = 'Level cleared';
   overlayTitleElement.textContent = `Level ${nextLevel}`;
   overlayTextElement.textContent = nextFruit && nextFruit.unlockLevel === nextLevel
-    ? `${nextFruit.label} joins the board next. Bombs are also a little more common now.`
-    : 'Fresh board, higher goal, and bigger combo potential. Keep swiping.';
+    ? `${nextFruit.label} joins the board next. Goals get steeper from here.`
+    : 'Fresh board, tougher goal, and less room for sloppy swipes.';
+  continueButton.textContent = 'Keep Crushing';
   overlayElement.classList.remove('hidden');
 }
 
-function hideLevelUpOverlay() {
+function hideOverlay() {
+  state.overlayMode = null;
   overlayElement.classList.add('hidden');
 }
 
@@ -721,6 +813,10 @@ async function resolveBoard(initialResolutionInput = null) {
     renderAll();
     await wait(170);
 
+    if (state.timeExpired) {
+      break;
+    }
+
     if (state.pendingLevelUp) {
       break;
     }
@@ -728,13 +824,18 @@ async function resolveBoard(initialResolutionInput = null) {
 
   state.busy = false;
 
+  if (state.timeExpired) {
+    showGameOverOverlay();
+    return;
+  }
+
   if (state.pendingLevelUp) {
     showLevelUpOverlay();
   }
 }
 
 async function trySwap(fromRow, fromCol, toRow, toCol) {
-  if (!inBounds(toRow, toCol) || state.busy || state.pendingLevelUp) {
+  if (!inBounds(toRow, toCol) || state.busy || state.pendingLevelUp || state.timeExpired || state.overlayMode === 'gameover') {
     return;
   }
 
@@ -754,6 +855,7 @@ async function trySwap(fromRow, fromCol, toRow, toCol) {
     swapPieces(fromRow, fromCol, toRow, toCol);
     renderBoard();
     await wait(120);
+    applyTimePenalty(INVALID_SWAP_PENALTY);
     state.busy = false;
     return;
   }
@@ -762,30 +864,55 @@ async function trySwap(fromRow, fromCol, toRow, toCol) {
 }
 
 function advanceLevel() {
+  if (state.timeExpired) {
+    showGameOverOverlay();
+    return;
+  }
+
   state.level += 1;
   state.meterGoal = LEVEL_GOAL_START + (state.level - 1) * LEVEL_GOAL_STEP;
   state.meter = 0;
   state.pendingLevelUp = false;
   state.availableFruits = getAvailableFruits(state.level);
   state.board = createStartingBoard();
-  hideLevelUpOverlay();
+  hideOverlay();
   renderAll();
+  startTimer(false);
 }
 
-function startNewBoard() {
-  if (state.busy) {
+function startNewRun() {
+  clearTimer();
+  state.level = 1;
+  state.score = 0;
+  state.bombsDetonated = 0;
+  state.meter = 0;
+  state.meterGoal = LEVEL_GOAL_START;
+  state.timeLeft = ROUND_TIME_SECONDS;
+  state.busy = false;
+  state.pendingLevelUp = false;
+  state.timeExpired = false;
+  state.availableFruits = getAvailableFruits(state.level);
+  state.swipeStart = null;
+  state.board = createStartingBoard();
+  hideOverlay();
+  renderAll();
+  startTimer(false);
+}
+
+function handleOverlayAction() {
+  if (state.overlayMode === 'gameover') {
+    startNewRun();
     return;
   }
 
-  state.pendingLevelUp = false;
-  hideLevelUpOverlay();
-  state.board = createStartingBoard();
-  renderAll();
+  if (state.overlayMode === 'level') {
+    advanceLevel();
+  }
 }
 
 function handlePointerDown(event) {
   const tile = event.target.closest('.tile');
-  if (!tile || state.busy || state.pendingLevelUp || tile.disabled) {
+  if (!tile || state.busy || state.pendingLevelUp || state.timeExpired || tile.disabled) {
     return;
   }
 
@@ -856,16 +983,10 @@ function handlePointerCancel(event) {
   clearSwipeState(event.pointerId);
 }
 
-function initializeGame() {
-  state.availableFruits = getAvailableFruits(state.level);
-  state.board = createStartingBoard();
-  renderAll();
-}
-
 boardElement.addEventListener('pointerdown', handlePointerDown);
 boardElement.addEventListener('pointerup', handlePointerUp);
 boardElement.addEventListener('pointercancel', handlePointerCancel);
-newGameButton.addEventListener('click', startNewBoard);
-continueButton.addEventListener('click', advanceLevel);
+newGameButton.addEventListener('click', startNewRun);
+continueButton.addEventListener('click', handleOverlayAction);
 
-initializeGame();
+startNewRun();
