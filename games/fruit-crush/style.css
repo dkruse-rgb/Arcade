@@ -402,6 +402,34 @@ h1 {
   will-change: transform, opacity;
 }
 
+.score-pop {
+  position: fixed;
+  left: 0;
+  top: 0;
+  min-width: 60px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.28);
+  will-change: transform, opacity;
+}
+
+.score-pop--fruit {
+  color: #eff6ff;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.92), rgba(168, 85, 247, 0.92));
+  border: 1px solid rgba(191, 219, 254, 0.32);
+}
+
+.score-pop--bomb {
+  color: #fff7ed;
+  background: linear-gradient(90deg, rgba(251, 146, 60, 0.96), rgba(244, 63, 94, 0.94));
+  border: 1px solid rgba(254, 215, 170, 0.34);
+}
+
 @keyframes meter-pulse {
   0% {
     box-shadow: inset 0 2px 6px rgba(2, 6, 23, 0.45), 0 0 0 rgba(56, 189, 248, 0);
@@ -541,6 +569,10 @@ h1 {
 
   .overlay-card {
     width: min(92%, 300px);
+  }
+
+  .score-pop {
+    font-size: 0.92rem;
   }
 
   .stat-card strong {
