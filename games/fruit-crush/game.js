@@ -346,9 +346,18 @@ function renderBoard() {
       const piece = state.board[row][col];
       const tile = document.createElement('button');
       tile.type = 'button';
-      tile.className = `tile tile--${piece.kind === 'bomb' ? 'bomb' : piece.type}`;
       tile.dataset.row = String(row);
       tile.dataset.col = String(col);
+
+      if (!piece) {
+        tile.className = 'tile tile--empty';
+        tile.disabled = true;
+        tile.setAttribute('aria-hidden', 'true');
+        boardElement.appendChild(tile);
+        continue;
+      }
+
+      tile.className = `tile tile--${piece.kind === 'bomb' ? 'bomb' : piece.type}`;
       tile.setAttribute(
         'aria-label',
         piece.kind === 'bomb' ? `Bomb at row ${row + 1}, column ${col + 1}` : `${FRUIT_LOOKUP[piece.type].label} at row ${row + 1}, column ${col + 1}`
@@ -475,12 +484,12 @@ function startNewBoard() {
   state.pendingLevelUp = false;
   hideLevelUpOverlay();
   state.board = createStartingBoard();
-  renderBoard();
+  renderAll();
 }
 
 function handlePointerDown(event) {
   const tile = event.target.closest('.tile');
-  if (!tile || state.busy || state.pendingLevelUp) {
+  if (!tile || state.busy || state.pendingLevelUp || tile.disabled) {
     return;
   }
 
