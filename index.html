@@ -8,24 +8,45 @@
 </head>
 <body>
   <header class="hero">
-    <h1>Arcade of Dustin</h1>
-    <p>Classic browser-game energy with a Dustin flavor.</p>
+    <img
+      class="hero-banner"
+      src="assets/images/arcade-of-dustin-banner.png"
+      alt="Arcade of Dustin neon arcade banner"
+    />
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <img
+        class="hero-logo"
+        src="assets/images/arcade-of-dustin-logo.png"
+        alt="Arcade of Dustin logo"
+      />
+      <h1>Arcade of Dustin</h1>
+      <p>Classic browser-game energy with a Dustin flavor.</p>
+      <a class="hero-button" href="#games">Enter Arcade</a>
+    </div>
   </header>
 
   <main>
-    <section class="games-section">
-      <h2>Games</h2>
+    <section class="games-section" id="games">
+      <h2>Featured</h2>
       <div class="game-grid">
-        <div class="game-card coming-soon">
-          <h3>Featured Game Coming Soon</h3>
-          <p>We are cooking up the first headliner for the arcade now.</p>
-          <span>In Progress</span>
+        <div class="game-card featured-card">
+          <img
+            class="featured-image"
+            src="assets/images/arcade-of-dustin-featured-game-coming-soon.png"
+            alt="Featured game coming soon"
+          />
+          <div class="card-copy">
+            <h3>Featured Game Coming Soon</h3>
+            <p>The first headliner is on the way. This arcade is just getting warmed up.</p>
+            <span>Loading...</span>
+          </div>
         </div>
 
-        <div class="game-card coming-soon">
-          <h3>More Coming Soon</h3>
-          <p>New mini-games will be added here.</p>
-          <span>Soon</span>
+        <div class="game-card coming-soon info-card">
+          <h3>More Neon Chaos Ahead</h3>
+          <p>New browser games, weird experiments, and arcade-style ideas will land here soon.</p>
+          <span>Stay Tuned</span>
         </div>
       </div>
     </section>
