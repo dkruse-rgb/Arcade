@@ -374,6 +374,46 @@ h1 {
   transition: width 0.2s ease;
 }
 
+.inline-meter-track,
+.meter-track {
+  position: relative;
+}
+
+.inline-meter-track.is-pulsing,
+.meter-track.is-pulsing {
+  animation: meter-pulse 0.55s ease-out 2;
+}
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.flying-fruit {
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 12px 18px rgba(15, 23, 42, 0.34));
+  will-change: transform, opacity;
+}
+
+@keyframes meter-pulse {
+  0% {
+    box-shadow: inset 0 2px 6px rgba(2, 6, 23, 0.45), 0 0 0 rgba(56, 189, 248, 0);
+  }
+  50% {
+    box-shadow: inset 0 2px 6px rgba(2, 6, 23, 0.45), 0 0 0 6px rgba(56, 189, 248, 0.18);
+  }
+  100% {
+    box-shadow: inset 0 2px 6px rgba(2, 6, 23, 0.45), 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
+
 .hint {
   line-height: 1.45;
 }
