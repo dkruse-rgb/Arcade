@@ -10,7 +10,7 @@ A personal browser-game arcade built by Dustin.
 
 ## Planned games
 
-- Railroad Signal Match
+- Featured game to be announced
 - More arcade-style mini games
 
 ## Structure
