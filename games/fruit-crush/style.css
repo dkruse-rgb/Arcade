@@ -91,6 +91,12 @@ a {
   cursor: pointer;
 }
 
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: grayscale(0.25);
+}
+
 .title-row {
   display: grid;
   gap: 1rem;
@@ -362,7 +368,8 @@ h1 {
 
 .stat-card,
 .meter-card,
-.howto-card {
+.howto-card,
+.bomb-bank-card {
   border-radius: 26px;
   padding: 1rem;
 }
@@ -372,7 +379,8 @@ h1 {
   gap: 0.45rem;
 }
 
-.stat-card strong {
+.stat-card strong,
+.bomb-bank-card strong {
   font-size: 2rem;
 }
 
@@ -381,6 +389,24 @@ h1 {
 .hint,
 .howto-card li {
   color: var(--muted);
+}
+
+.bomb-bank-card {
+  display: grid;
+  gap: 0.9rem;
+  background:
+    radial-gradient(circle at top left, rgba(251, 146, 60, 0.18), transparent 42%),
+    rgba(10, 19, 36, 0.86);
+  border-color: rgba(251, 191, 36, 0.22) !important;
+}
+
+.bomb-bank-copy {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.bomb-bank-button {
+  width: 100%;
 }
 
 .meter-card {
@@ -635,7 +661,8 @@ h1 {
     font-size: 0.92rem;
   }
 
-  .stat-card strong {
+  .stat-card strong,
+  .bomb-bank-card strong {
     font-size: 1.65rem;
   }
 }
