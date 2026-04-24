@@ -18,7 +18,7 @@
         <div>
           <p class="eyebrow">Swipe to match</p>
           <h1>Fruit Crush</h1>
-          <p class="subtitle">Beat the clock, chain combos, and fill the meter before time runs out.</p>
+          <p class="subtitle">Beat the clock, chain combos, earn bombs with 5-matches, and fill the meter before time runs out.</p>
         </div>
 
         <div class="title-status">
@@ -62,9 +62,18 @@
           <strong id="score-value">0</strong>
         </article>
         <article class="stat-card">
-          <span class="stat-label">Bombs</span>
+          <span class="stat-label">Bombs Used</span>
           <strong id="bomb-value">0</strong>
         </article>
+      </section>
+
+      <section class="bomb-bank-card">
+        <div class="bomb-bank-copy">
+          <span class="stat-label">Bomb Bank</span>
+          <strong id="bomb-bank-value">0 / 5</strong>
+          <p class="hint">Match 5 in a row to bank a bomb. Tap to drop one randomly.</p>
+        </div>
+        <button id="bomb-bank-button" class="primary-button bomb-bank-button" type="button" disabled>Drop Bomb</button>
       </section>
 
       <section class="meter-card">
@@ -81,36 +90,17 @@
       <section class="howto-card">
         <h2>How it works</h2>
         <ul>
-          <li>You have 2 minutes to score as high as possible.</li>
+          <li>You have 2 minutes each round to score as high as possible.</li>
           <li>Swipe a fruit into a neighbor to make 3 or more in a line.</li>
-          <li>Swipe a bomb to detonate it instantly and chain other bombs in its 1-tile blast zone.</li>
-          <li>Cascade clears build combo multipliers, and bad swaps cost time.</li>
+          <li>Match 5 in a row or column to add 1 bomb to your bank, up to 5.</li>
+          <li>Tap Bomb Bank to drop one saved bomb randomly onto the board.</li>
+          <li>Swipe a bomb to detonate it and chain other bombs in its 1-tile blast zone.</li>
+          <li>Each successful clear wave adds 1 second. Bad swaps cost time.</li>
         </ul>
       </section>
     </aside>
   </main>
 
-  <script src="game-v3.js"></script>
-  <script>
-    (() => {
-      if (typeof advanceLevel !== 'function') return;
-      window.advanceLevel = function () {
-        if (state.timeExpired) {
-          showGameOverOverlay();
-          return;
-        }
-
-        state.level += 1;
-        state.meterGoal = LEVEL_GOAL_START + (state.level - 1) * LEVEL_GOAL_STEP;
-        state.meter = 0;
-        state.pendingLevelUp = false;
-        state.availableFruits = getAvailableFruits(state.level);
-        state.board = createStartingBoard();
-        hideOverlay();
-        renderAll();
-        startTimer(true);
-      };
-    })();
-  </script>
+  <script src="game-v4.js"></script>
 </body>
 </html>
