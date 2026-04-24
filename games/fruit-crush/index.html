@@ -18,7 +18,7 @@
         <div>
           <p class="eyebrow">Swipe to match</p>
           <h1>Fruit Crush</h1>
-          <p class="subtitle">Beat the clock, chain combos, earn bombs with 5-matches, and fill the meter before time runs out.</p>
+          <p class="subtitle">Beat the clock, chain combos, earn power-ups with 5-matches, and fill the meter before time runs out.</p>
         </div>
 
         <div class="title-status">
@@ -53,6 +53,15 @@
           </div>
         </div>
       </div>
+
+      <section class="bomb-bank-card bomb-bank-card--under-board">
+        <div class="bomb-bank-copy">
+          <span class="stat-label">Bomb Bank</span>
+          <strong id="bomb-bank-value">0 / 5</strong>
+          <p class="hint">Match 5 in a row to bank one. Tap to drop one randomly onto the board.</p>
+        </div>
+        <button id="bomb-bank-button" class="primary-button bomb-bank-button" type="button" disabled>Drop Bomb</button>
+      </section>
     </section>
 
     <aside class="hud-panel">
@@ -65,15 +74,6 @@
           <span class="stat-label">Bombs Used</span>
           <strong id="bomb-value">0</strong>
         </article>
-      </section>
-
-      <section class="bomb-bank-card">
-        <div class="bomb-bank-copy">
-          <span class="stat-label">Bomb Bank</span>
-          <strong id="bomb-bank-value">0 / 5</strong>
-          <p class="hint">Match 5 in a row to bank a bomb. Tap to drop one randomly.</p>
-        </div>
-        <button id="bomb-bank-button" class="primary-button bomb-bank-button" type="button" disabled>Drop Bomb</button>
       </section>
 
       <section class="meter-card">
@@ -92,9 +92,9 @@
         <ul>
           <li>You have 2 minutes each round to score as high as possible.</li>
           <li>Swipe a fruit into a neighbor to make 3 or more in a line.</li>
-          <li>Match 5 in a row or column to add 1 bomb to your bank, up to 5.</li>
+          <li>Match 5 in a row or column to add 1 to your bank, up to 5.</li>
           <li>Tap Bomb Bank to drop one saved bomb randomly onto the board.</li>
-          <li>Swipe a bomb to detonate it and chain other bombs in its 1-tile blast zone.</li>
+          <li>Swipe a bomb to clear nearby tiles and chain other bombs in its 1-tile zone.</li>
           <li>Each successful clear wave adds 1 second. Bad swaps cost time.</li>
         </ul>
       </section>
