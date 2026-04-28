@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City v4 Empire Mode</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      background: #07101d;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .topbar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(10, 18, 31, 0.97);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f6f8fb;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .version {
+      color: #f9c74f;
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+    .back-link,
+    .empire-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.65rem 0.9rem;
+      color: #07101d;
+      background: linear-gradient(135deg, #51d88a, #9effc3);
+      font-weight: 900;
+      white-space: nowrap;
+      cursor: pointer;
+      font: inherit;
+    }
+    .empire-toggle {
+      background: linear-gradient(135deg, #f9c74f, #ffe49a);
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: calc(100vh - 58px);
+      border: 0;
+      background: #07101d;
+    }
+    @media (max-width: 560px) {
+      .topbar { height: 54px; padding: 8px 10px; }
+      .brand { font-size: 0.92rem; }
+      .version { display: none; }
+      .back-link, .empire-toggle { padding: 0.55rem 0.68rem; font-size: 0.86rem; }
+      iframe { height: calc(100vh - 54px); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="../../index.html">← Back</a>
+    <div class="brand">Flip City <span class="version">v4 · Empire Mode</span></div>
+    <div class="top-actions">
+      <button class="empire-toggle" id="empireToggle">Empire HQ</button>
+    </div>
+  </header>
+
+  <iframe id="gameFrame" src="flip-city-infinite-overlay.html" title="Flip City game"></iframe>
+
+  <script>
+    const frame = document.getElementById('gameFrame');
+    const toggle = document.getElementById('empireToggle');
+
+    const houseImageSlugs = {
+      oak: 'oak-street-bungalow',
+      maple: 'maple-avenue-duplex',
+      river: 'riverbend-cottage'
+    };
+
+    const districtUnlocks = [
+      { id: 'downtown', name: 'Downtown District', cost: 2500000, type: 'highrise', note: 'Unlocks bigger urban deals and premium flips.' },
+      { id: 'waterfront', name: 'Waterfront District', cost: 5000000, type: 'waterfront', note: 'Unlocks expensive waterfront homes and luxury rentals.' },
+      { id: 'luxury', name: 'Luxury Hills', cost: 10000000, type: 'luxury', note: 'Unlocks mansions, estates, and ridiculous repair bills.' },
+      { id: 'commercial', name: 'Commercial Row', cost: 15000000, type: 'commercial', note: 'Unlocks strip centers and commercial income properties.' }
+    ];
+
+    const staffOptions = [
+      { id: 'contractor', name: 'Contractor Crew', cost: 750000, note: 'Renovations feel cheaper in spirit. Adds reputation and unlocks better empire pacing.' },
+      { id: 'manager', name: 'Property Manager', cost: 1250000, note: 'Rental empire credibility. Adds reputation and helps justify holding properties.' },
+      { id: 'maintenance', name: 'Maintenance Team', cost: 1800000, note: 'Tenant problems feel less scary. Adds reputation and late-game stability.' },
+      { id: 'analyst', name: 'Market Analyst', cost: 2200000, note: 'Better scouting instincts. Adds reputation and unlocks premium deal flow.' }
+    ];
+
+    const milestones = [
+      { id: 'm10', name: '$10M Net Worth', target: 10000000 },
+      { id: 'm25', name: '$25M Net Worth', target: 25000000 },
+      { id: 'm50', name: '$50M Net Worth', target: 50000000 },
+      { id: 'm100', name: '$100M Net Worth', target: 100000000 }
+    ];
+
+    function money(n) {
+      return Number(n || 0).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    }
+
+    function safe(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+    }
+
+    function getGame() { return frame.contentWindow; }
+    function getDoc() { return frame.contentDocument; }
+
+    function ensureEmpireState(game) {
+      if (!game.state) return null;
+      if (!game.state.empire) {
+        game.state.empire = {
+          districts: [],
+          staff: [],
+          goals: [],
+          prestige: 0,
+          feesPaid: 0,
+          empireDeals: 0,
+          lastCashSinkDay: 0
+        };
+      }
+      game.state.empire.districts ||= [];
+      game.state.empire.staff ||= [];
+      game.state.empire.goals ||= [];
+      game.state.empire.prestige ||= 0;
+      game.state.empire.feesPaid ||= 0;
+      game.state.empire.empireDeals ||= 0;
+      game.state.empire.lastCashSinkDay ||= 0;
+      return game.state.empire;
+    }
+
+    function saveGame(game) {
+      try { game.localStorage?.setItem('flip-city-save-v2', JSON.stringify(game.state)); } catch {}
+      try { game.render?.(); } catch {}
+    }
+
+    function getUpgradeCount(game, id) {
+      const owned = game.state?.owned?.[id];
+      if (owned) return (owned.upgrades || []).length;
+      const sold = (game.state?.sold || []).find(item => item.id === id);
+      if (sold) return (sold.upgrades || []).length;
+      return 0;
+    }
+
+    function getImageState(game, id) {
+      const upgrades = getUpgradeCount(game, id);
+      if (upgrades >= 5) return 'finished';
+      if (upgrades >= 2) return 'improved';
+      return 'fixer';
+    }
+
+    function getStateLabel(state) {
+      if (state === 'finished') return 'Finished';
+      if (state === 'improved') return 'Improved';
+      return 'Fixer';
+    }
+
+    function estimateNetWorth(game) {
+      let total = game.state?.cash || 0;
+      const ids = Object.keys(game.state?.owned || {});
+      ids.forEach(id => {
+        const h = game.house?.(id);
+        const r = game.state.owned[id];
+        if (h && game.projectValue) total += game.projectValue(h, r).value;
+      });
+      return total;
+    }
+
+    function injectStyles(doc) {
+      if (doc.getElementById('flipCityV4Styles')) return;
+      const style = doc.createElement('style');
+      style.id = 'flipCityV4Styles';
+      style.textContent = `
+        .property-image-card {
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 22px;
+          background: rgba(255,255,255,.055);
+          margin-bottom: 16px;
+          box-shadow: 0 16px 36px rgba(0,0,0,.2);
+        }
+        .property-image-card img {
+          display: block;
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          object-fit: cover;
+          background: #07101d;
+        }
+        .property-image-meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          border-top: 1px solid rgba(255,255,255,.1);
+        }
+        .property-image-meta strong { color: #f6f8fb; font-size: .95rem; }
+        .property-image-meta span {
+          color: #9cafc6;
+          font-size: .78rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: .12em;
+        }
+        .property-image-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: .34rem .55rem;
+          color: #07101d !important;
+          background: linear-gradient(135deg, #51d88a, #9effc3);
+          letter-spacing: 0 !important;
+          text-transform: none !important;
+          font-size: .78rem !important;
+        }
+        .property-image-note { color: #9cafc6; font-size: .8rem; line-height: 1.35; padding: 0 12px 12px; }
+        .empire-panel {
+          border: 1px solid rgba(249,199,79,.28);
+          border-radius: 28px;
+          background: linear-gradient(135deg, rgba(249,199,79,.12), rgba(18,29,47,.94));
+          box-shadow: 0 24px 60px rgba(0,0,0,.32);
+          margin: 18px 0;
+          overflow: hidden;
+        }
+        .empire-panel.hidden { display: none; }
+        .empire-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 18px;
+          border-bottom: 1px solid rgba(255,255,255,.12);
+        }
+        .empire-head p { margin: 7px 0 0; color: #c7d2e4; line-height: 1.45; }
+        .empire-body { padding: 18px; display: grid; gap: 14px; }
+        .empire-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .empire-card {
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 18px;
+          background: rgba(255,255,255,.06);
+          padding: 12px;
+        }
+        .empire-card span { display: block; color: #9cafc6; font-size: .78rem; }
+        .empire-card strong { display: block; margin-top: 5px; color: #f6f8fb; }
+        .empire-shop { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .empire-item {
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 18px;
+          background: rgba(255,255,255,.055);
+          padding: 13px;
+        }
+        .empire-item h3 { margin: 0; font-size: 1rem; }
+        .empire-item p { margin: 7px 0 0; color: #9cafc6; line-height: 1.4; font-size: .9rem; }
+        .empire-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .empire-badge {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: .32rem .5rem;
+          background: rgba(81,216,138,.16);
+          border: 1px solid rgba(81,216,138,.34);
+          color: #b8ffd4 !important;
+          font-size: .78rem !important;
+          font-weight: 900;
+        }
+        .empire-progress {
+          height: 9px;
+          border-radius: 99px;
+          background: rgba(255,255,255,.12);
+          overflow: hidden;
+          margin-top: 8px;
+        }
+        .empire-progress i {
+          display: block;
+          height: 100%;
+          border-radius: 99px;
+          background: linear-gradient(90deg, #51d88a, #f9c74f);
+        }
+        @media(max-width: 980px) { .empire-grid, .empire-shop { grid-template-columns: 1fr 1fr; } }
+        @media(max-width: 560px) { .empire-grid, .empire-shop { grid-template-columns: 1fr; } .empire-head { flex-direction: column; } }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function decoratePropertyPanel() {
+      const game = getGame();
+      const doc = getDoc();
+      if (!game || !doc || !game.state) return;
+      injectStyles(doc);
+      const details = doc.querySelector('#details');
+      if (!details) return;
+      const selectedId = game.state.selected;
+      const slug = houseImageSlugs[selectedId];
+      details.querySelectorAll('.property-image-card').forEach(card => card.remove());
+      if (!slug) return;
+      const h = game.house ? game.house(selectedId) : null;
+      const imageState = getImageState(game, selectedId);
+      const imageSrc = `assets/images/houses/${slug}-${imageState}.png`;
+      const upgradeCount = getUpgradeCount(game, selectedId);
+      const card = doc.createElement('div');
+      card.className = 'property-image-card';
+      card.innerHTML = `
+        <img src="${imageSrc}" alt="${h ? safe(h.name) : slug} ${imageState} state" loading="lazy" />
+        <div class="property-image-meta">
+          <div><strong>${h ? safe(h.name) : 'Property Image'}</strong><br><span>${upgradeCount} upgrade${upgradeCount === 1 ? '' : 's'} completed</span></div>
+          <span class="property-image-badge">${getStateLabel(imageState)}</span>
+        </div>
+        <div class="property-image-note">Image changes as renovations stack up: 0–1 upgrades = fixer, 2–4 = improved, 5+ = finished.</div>
+      `;
+      details.prepend(card);
+    }
+
+    function makeEmpireProperty(game, districtType) {
+      const empire = ensureEmpireState(game);
+      empire.empireDeals++;
+      const templates = {
+        highrise: { icon: '🏢', district: 'Downtown', names: ['Glass Tower Lofts', 'Central Avenue Apartments', 'Metro Block Flats'], min: 900000, max: 2600000, mult: 1.38, risk: .24 },
+        waterfront: { icon: '🌊', district: 'Waterfront', names: ['Harbor View Estate', 'Riverfront Rowhouse', 'Marina District Villa'], min: 1600000, max: 4200000, mult: 1.42, risk: .2 },
+        luxury: { icon: '🏰', district: 'Luxury Hills', names: ['Crown Ridge Mansion', 'Goldleaf Estate', 'Skyline Manor'], min: 3500000, max: 9000000, mult: 1.5, risk: .28 },
+        commercial: { icon: '🏬', district: 'Commercial Row', names: ['Corner Strip Center', 'Old Market Plaza', 'Depot Retail Block'], min: 5000000, max: 12000000, mult: 1.36, risk: .32 }
+      };
+      const t = templates[districtType] || templates.highrise;
+      const price = Math.round((t.min + Math.random() * (t.max - t.min)) / 1000) * 1000;
+      const name = t.names[Math.floor(Math.random() * t.names.length)] + ' ' + empire.empireDeals;
+      return {
+        id: `empire_${districtType}_${Date.now()}_${empire.empireDeals}`,
+        name,
+        district: t.district,
+        icon: t.icon,
+        x: Math.floor(10 + Math.random() * 80),
+        y: Math.floor(12 + Math.random() * 74),
+        price,
+        value: Math.round(price * t.mult / 1000) * 1000,
+        condition: Math.floor(42 + Math.random() * 30),
+        curb: Math.floor(40 + Math.random() * 34),
+        risk: t.risk,
+        generated: true,
+        notes: `Empire deal in ${t.district}. Bigger money, bigger upside, bigger ways for a building to ruin your afternoon.`
+      };
+    }
+
+    function addEmpireDeals(type, count = 2) {
+      const game = getGame();
+      const empire = ensureEmpireState(game);
+      if (!game || !empire) return;
+      const fee = count * 250000;
+      if ((game.state.cash || 0) < fee) {
+        game.toast?.('Not enough cash for empire scouting.');
+        return;
+      }
+      game.state.cash -= fee;
+      game.state.generated ||= [];
+      for (let i = 0; i < count; i++) game.state.generated.push(makeEmpireProperty(game, type));
+      game.state.day += 1;
+      game.log?.(`Empire scouting added ${count} ${type} deal${count === 1 ? '' : 's'} for ${money(fee)}.`);
+      saveGame(game);
+      renderEmpirePanel();
+    }
+
+    function buyDistrict(id) {
+      const game = getGame();
+      const empire = ensureEmpireState(game);
+      const d = districtUnlocks.find(x => x.id === id);
+      if (!game || !empire || !d) return;
+      if (empire.districts.includes(id)) return;
+      if ((game.state.cash || 0) < d.cost) {
+        game.toast?.('Not enough cash to unlock that district.');
+        return;
+      }
+      game.state.cash -= d.cost;
+      empire.districts.push(id);
+      game.state.rep = (game.state.rep || 1) + 1.25;
+      game.log?.(`Unlocked ${d.name} for ${money(d.cost)}.`);
+      addEmpireDeals(d.type, 2);
+      saveGame(game);
+      renderEmpirePanel();
+    }
+
+    function hireStaff(id) {
+      const game = getGame();
+      const empire = ensureEmpireState(game);
+      const s = staffOptions.find(x => x.id === id);
+      if (!game || !empire || !s) return;
+      if (empire.staff.includes(id)) return;
+      if ((game.state.cash || 0) < s.cost) {
+        game.toast?.('Not enough cash to hire that staff upgrade.');
+        return;
+      }
+      game.state.cash -= s.cost;
+      empire.staff.push(id);
+      game.state.rep = (game.state.rep || 1) + .75;
+      game.log?.(`Hired ${s.name} for ${money(s.cost)}.`);
+      saveGame(game);
+      renderEmpirePanel();
+    }
+
+    function payCashSink(type) {
+      const game = getGame();
+      const empire = ensureEmpireState(game);
+      if (!game || !empire) return;
+      const options = {
+        taxes: { label: 'Quarterly Property Taxes', cost: Math.max(250000, Math.round(estimateNetWorth(game) * .018)), rep: .05 },
+        office: { label: 'Upgrade Real Estate Office', cost: 3500000, rep: 1.2 },
+        cityhall: { label: 'Buy City Hall Naming Rights', cost: 25000000, rep: 5 }
+      };
+      const item = options[type];
+      if (!item) return;
+      if ((game.state.cash || 0) < item.cost) {
+        game.toast?.('Not enough cash for that empire expense.');
+        return;
+      }
+      game.state.cash -= item.cost;
+      empire.feesPaid += item.cost;
+      game.state.rep = (game.state.rep || 1) + item.rep;
+      game.log?.(`Empire expense paid: ${item.label} for ${money(item.cost)}.`);
+      saveGame(game);
+      renderEmpirePanel();
+    }
+
+    function claimGoals() {
+      const game = getGame();
+      const empire = ensureEmpireState(game);
+      const nw = estimateNetWorth(game);
+      milestones.forEach(m => {
+        if (nw >= m.target && !empire.goals.includes(m.id)) {
+          empire.goals.push(m.id);
+          empire.prestige += 1;
+          game.state.rep = (game.state.rep || 1) + 2;
+          game.log?.(`Milestone reached: ${m.name}. Prestige increased.`);
+        }
+      });
+      saveGame(game);
+      renderEmpirePanel();
+    }
+
+    function renderEmpirePanel() {
+      const game = getGame();
+      const doc = getDoc();
+      if (!game || !doc || !game.state) return;
+      injectStyles(doc);
+      const empire = ensureEmpireState(game);
+      const stats = doc.querySelector('#stats');
+      if (!stats) return;
+      let panel = doc.querySelector('#empirePanel');
+      if (!panel) {
+        panel = doc.createElement('section');
+        panel.id = 'empirePanel';
+        panel.className = 'empire-panel hidden';
+        stats.insertAdjacentElement('afterend', panel);
+      }
+      const netWorth = estimateNetWorth(game);
+      const unlockedNames = districtUnlocks.filter(d => empire.districts.includes(d.id)).map(d => d.name);
+      const hiredNames = staffOptions.filter(s => empire.staff.includes(s.id)).map(s => s.name);
+      const nextGoal = milestones.find(m => !empire.goals.includes(m.id));
+      const progress = nextGoal ? Math.min(100, Math.round((netWorth / nextGoal.target) * 100)) : 100;
+      panel.innerHTML = `
+        <div class="empire-head">
+          <div>
+            <p class="eyebrow">Empire Mode</p>
+            <h2>Real Estate Empire HQ</h2>
+            <p>Spend late-game cash on districts, staff, bigger deals, and prestige goals.</p>
+          </div>
+          <button class="btn secondary" id="closeEmpirePanel">Hide</button>
+        </div>
+        <div class="empire-body">
+          <div class="empire-grid">
+            <div class="empire-card"><span>Estimated Net Worth</span><strong>${money(netWorth)}</strong></div>
+            <div class="empire-card"><span>Districts Unlocked</span><strong>${empire.districts.length}</strong></div>
+            <div class="empire-card"><span>Staff Hired</span><strong>${empire.staff.length}</strong></div>
+            <div class="empire-card"><span>Prestige</span><strong>${empire.prestige}</strong></div>
+          </div>
+
+          <div class="empire-card">
+            <span>Next Goal</span>
+            <strong>${nextGoal ? nextGoal.name + ' · ' + money(nextGoal.target) : 'All current goals claimed'}</strong>
+            <div class="empire-progress"><i style="width:${progress}%"></i></div>
+            <div class="empire-actions"><button class="btn" id="claimGoalsBtn">Claim Goals</button></div>
+          </div>
+
+          <h3>District Unlocks</h3>
+          <div class="empire-shop">
+            ${districtUnlocks.map(d => {
+              const owned = empire.districts.includes(d.id);
+              return `<article class="empire-item"><h3>${safe(d.name)}</h3><p>${safe(d.note)}</p><p><strong>${money(d.cost)}</strong></p><div class="empire-actions">${owned ? `<span class="empire-badge">Unlocked</span><button class="btn secondary" data-scout="${d.type}">Scout ${safe(d.name)}</button>` : `<button class="btn" data-district="${d.id}">Unlock</button>`}</div></article>`;
+            }).join('')}
+          </div>
+
+          <h3>Staff & Automation</h3>
+          <div class="empire-shop">
+            ${staffOptions.map(s => {
+              const owned = empire.staff.includes(s.id);
+              return `<article class="empire-item"><h3>${safe(s.name)}</h3><p>${safe(s.note)}</p><p><strong>${money(s.cost)}</strong></p><div class="empire-actions">${owned ? `<span class="empire-badge">Hired</span>` : `<button class="btn" data-staff="${s.id}">Hire</button>`}</div></article>`;
+            }).join('')}
+          </div>
+
+          <h3>Big Cash Sinks</h3>
+          <div class="empire-shop">
+            <article class="empire-item"><h3>Quarterly Property Taxes</h3><p>Pay a scaling tax bill to keep the empire honest.</p><p><strong>${money(Math.max(250000, Math.round(netWorth * .018)))}</strong></p><div class="empire-actions"><button class="btn danger" data-sink="taxes">Pay Taxes</button></div></article>
+            <article class="empire-item"><h3>Real Estate Office</h3><p>Upgrade from phone-in-the-truck to actual empire headquarters.</p><p><strong>${money(3500000)}</strong></p><div class="empire-actions"><button class="btn" data-sink="office">Upgrade Office</button></div></article>
+            <article class="empire-item"><h3>City Hall Naming Rights</h3><p>Absurd? Yes. But so is having this much cash.</p><p><strong>${money(25000000)}</strong></p><div class="empire-actions"><button class="btn" data-sink="cityhall">Buy Clout</button></div></article>
+          </div>
+        </div>
+      `;
+      panel.querySelector('#closeEmpirePanel')?.addEventListener('click', () => panel.classList.add('hidden'));
+      panel.querySelector('#claimGoalsBtn')?.addEventListener('click', claimGoals);
+      panel.querySelectorAll('[data-district]').forEach(btn => btn.addEventListener('click', () => buyDistrict(btn.dataset.district)));
+      panel.querySelectorAll('[data-staff]').forEach(btn => btn.addEventListener('click', () => hireStaff(btn.dataset.staff)));
+      panel.querySelectorAll('[data-scout]').forEach(btn => btn.addEventListener('click', () => addEmpireDeals(btn.dataset.scout, 2)));
+      panel.querySelectorAll('[data-sink]').forEach(btn => btn.addEventListener('click', () => payCashSink(btn.dataset.sink)));
+    }
+
+    function toggleEmpirePanel() {
+      const doc = getDoc();
+      renderEmpirePanel();
+      const panel = doc?.querySelector('#empirePanel');
+      if (panel) panel.classList.toggle('hidden');
+    }
+
+    function patchGame() {
+      const game = getGame();
+      const doc = getDoc();
+      if (!game || !doc) return;
+      const details = doc.querySelector('#details');
+      if (!details) { setTimeout(patchGame, 250); return; }
+      ensureEmpireState(game);
+      decoratePropertyPanel();
+      renderEmpirePanel();
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(observer._timer);
+        observer._timer = setTimeout(decoratePropertyPanel, 40);
+      });
+      observer.observe(details, { childList: true, subtree: false });
+
+      const originalRender = game.render;
+      if (typeof originalRender === 'function' && !game.__flipCityV4RenderPatched) {
+        game.render = function patchedRender() {
+          const result = originalRender.apply(this, arguments);
+          setTimeout(decoratePropertyPanel, 40);
+          setTimeout(renderEmpirePanel, 80);
+          return result;
+        };
+        game.__flipCityV4RenderPatched = true;
+      }
+      game.addEventListener?.('click', () => setTimeout(decoratePropertyPanel, 60));
+    }
+
+    toggle.addEventListener('click', toggleEmpirePanel);
+    frame.addEventListener('load', () => {
+      setTimeout(patchGame, 300);
+      setTimeout(decoratePropertyPanel, 700);
+      setTimeout(renderEmpirePanel, 900);
+      setTimeout(decoratePropertyPanel, 1400);
+    });
+  </script>
+</body>
+</html>
