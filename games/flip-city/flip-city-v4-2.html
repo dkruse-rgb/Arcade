@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City v4.2 Empire Mode</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #07101d; }
+    iframe { display: block; width: 100%; height: 100vh; border: 0; background: #07101d; }
+  </style>
+</head>
+<body>
+  <iframe id="v41Frame" src="flip-city-v4-1.html" title="Flip City v4.1 Empire Mode"></iframe>
+
+  <script>
+    const wrapperFrame = document.getElementById('v41Frame');
+
+    function getV4Window() {
+      const v41 = wrapperFrame.contentWindow;
+      const v4Frame = v41?.document?.getElementById('v4Frame');
+      return v4Frame?.contentWindow || null;
+    }
+
+    function getGameWindow() {
+      const v4 = getV4Window();
+      const gameFrame = v4?.document?.getElementById('gameFrame');
+      return gameFrame?.contentWindow || null;
+    }
+
+    function getGameDocument() {
+      const v4 = getV4Window();
+      const gameFrame = v4?.document?.getElementById('gameFrame');
+      return gameFrame?.contentDocument || null;
+    }
+
+    function ensureEmpire(game) {
+      if (!game?.state) return null;
+      game.state.empire ||= {};
+      game.state.empire.staff ||= [];
+      return game.state.empire;
+    }
+
+    function hasPropertyManager(game) {
+      const empire = ensureEmpire(game);
+      return !!empire?.staff?.includes('manager');
+    }
+
+    function saveGame(game) {
+      try { game.localStorage?.setItem('flip-city-save-v2', JSON.stringify(game.state)); } catch {}
+    }
+
+    function injectRentalLockStyles(doc) {
+      if (doc.getElementById('flipCityV42RentalLockStyles')) return;
+      const style = doc.createElement('style');
+      style.id = 'flipCityV42RentalLockStyles';
+      style.textContent = `
+        .rental-lock-card {
+          border: 1px solid rgba(249,199,79,.32);
+          background: linear-gradient(135deg, rgba(249,199,79,.14), rgba(255,255,255,.055));
+          border-radius: 18px;
+          padding: 12px;
+          margin: 12px 0;
+        }
+        .rental-lock-card strong {
+          display: block;
+          color: #f9c74f;
+          margin-bottom: 4px;
+        }
+        .rental-lock-card p {
+          color: #c7d2e4 !important;
+          margin: 0 !important;
+          line-height: 1.4 !important;
+          font-size: .9rem;
+        }
+        .rental-locked-button {
+          opacity: .62 !important;
+          filter: grayscale(.2);
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function getSelectedOwnedRecord(game) {
+      const id = game.state?.selected;
+      if (!id) return null;
+      return game.state?.owned?.[id] || null;
+    }
+
+    function patchRentButtons() {
+      const game = getGameWindow();
+      const doc = getGameDocument();
+      if (!game || !doc || !game.state) return;
+
+      ensureEmpire(game);
+      injectRentalLockStyles(doc);
+
+      const details = doc.querySelector('#details');
+      if (!details) return;
+
+      const managerUnlocked = hasPropertyManager(game);
+      details.querySelectorAll('.rental-lock-card').forEach(card => card.remove());
+
+      const rentButtons = [...details.querySelectorAll('button')].filter(btn => {
+        const onclick = btn.getAttribute('onclick') || '';
+        return onclick.includes('rentOut(') || /Rent Out/i.test(btn.textContent || '');
+      });
+
+      if (managerUnlocked) {
+        rentButtons.forEach(btn => {
+          btn.disabled = false;
+          btn.classList.remove('rental-locked-button');
+          if (btn.dataset.originalText) btn.textContent = btn.dataset.originalText;
+        });
+        return;
+      }
+
+      const owned = getSelectedOwnedRecord(game);
+      if (owned && !owned.rental?.active) {
+        const lockCard = doc.createElement('div');
+        lockCard.className = 'rental-lock-card';
+        lockCard.innerHTML = `
+          <strong>Rentals Locked</strong>
+          <p>Hire the <b>Property Manager</b> in Empire HQ to start renting houses. You can still sell or renovate this property.</p>
+        `;
+        const numbers = details.querySelector('.numbers');
+        if (numbers) numbers.insertAdjacentElement('afterend', lockCard);
+        else details.prepend(lockCard);
+      }
+
+      rentButtons.forEach(btn => {
+        if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+        btn.textContent = 'Hire Property Manager to Rent';
+        btn.disabled = false;
+        btn.classList.add('rental-locked-button');
+        const clone = btn.cloneNode(true);
+        clone.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          game.toast?.('Rentals unlock after hiring the Property Manager in Empire HQ.');
+        });
+        btn.replaceWith(clone);
+      });
+    }
+
+    function patchRentOutFunction() {
+      const game = getGameWindow();
+      if (!game || !game.state || game.__flipCityV42RentPatched) return;
+      const originalRentOut = game.rentOut;
+      if (typeof originalRentOut !== 'function') return;
+
+      game.rentOut = function patchedRentOut(id) {
+        if (!hasPropertyManager(game)) {
+          game.toast?.('Rentals unlock after hiring the Property Manager in Empire HQ.');
+          patchRentButtons();
+          return;
+        }
+        return originalRentOut.apply(this, arguments);
+      };
+
+      try { game.window.rentOut = game.rentOut; } catch {}
+      game.__flipCityV42RentPatched = true;
+      saveGame(game);
+    }
+
+    function patchStaffHiringFeedback() {
+      const game = getGameWindow();
+      const v4 = getV4Window();
+      if (!game || !v4 || v4.__flipCityV42StaffFeedbackPatched) return;
+
+      const originalHireStaff = v4.hireStaff;
+      if (typeof originalHireStaff === 'function') {
+        v4.hireStaff = function patchedHireStaff(id) {
+          const result = originalHireStaff.apply(this, arguments);
+          setTimeout(patchRentButtons, 120);
+          if (id === 'manager' && hasPropertyManager(game)) {
+            game.toast?.('Property Manager hired. Rentals unlocked.');
+          }
+          return result;
+        };
+        v4.__flipCityV42StaffFeedbackPatched = true;
+      }
+    }
+
+    function patchAll() {
+      patchRentOutFunction();
+      patchStaffHiringFeedback();
+      patchRentButtons();
+    }
+
+    function startPatching() {
+      const doc = getGameDocument();
+      if (!doc?.body) {
+        setTimeout(startPatching, 350);
+        return;
+      }
+
+      patchAll();
+      setInterval(patchAll, 900);
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(observer._timer);
+        observer._timer = setTimeout(patchAll, 80);
+      });
+      observer.observe(doc.body, { childList: true, subtree: true });
+
+      setTimeout(patchAll, 600);
+      setTimeout(patchAll, 1500);
+      setTimeout(patchAll, 3000);
+    }
+
+    wrapperFrame.addEventListener('load', () => {
+      setTimeout(startPatching, 1300);
+    });
+  </script>
+</body>
+</html>
