@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City v3</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      background: #07101d;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(10, 18, 31, 0.96);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f6f8fb;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .version {
+      color: #9cafc6;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 0.65rem 0.9rem;
+      color: #07101d;
+      background: linear-gradient(135deg, #51d88a, #9effc3);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: calc(100vh - 56px);
+      border: 0;
+      background: #07101d;
+    }
+    @media (max-width: 560px) {
+      .topbar { height: 52px; padding: 8px 10px; }
+      .brand { font-size: 0.95rem; }
+      .version { display: none; }
+      .back-link { padding: 0.55rem 0.72rem; font-size: 0.9rem; }
+      iframe { height: calc(100vh - 52px); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="../../index.html">← Back to Arcade</a>
+    <div class="brand">Flip City <span class="version">v3 · House Images</span></div>
+  </header>
+
+  <iframe id="gameFrame" src="flip-city-infinite-overlay.html" title="Flip City game"></iframe>
+
+  <script>
+    const frame = document.getElementById('gameFrame');
+
+    const houseImageSlugs = {
+      oak: 'oak-street-bungalow',
+      maple: 'maple-avenue-duplex',
+      river: 'riverbend-cottage'
+    };
+
+    function getUpgradeCount(game, id) {
+      const owned = game.state?.owned?.[id];
+      if (owned) return (owned.upgrades || []).length;
+
+      const sold = (game.state?.sold || []).find(item => item.id === id);
+      if (sold) return (sold.upgrades || []).length;
+
+      return 0;
+    }
+
+    function getImageState(game, id) {
+      const upgrades = getUpgradeCount(game, id);
+      if (upgrades >= 5) return 'finished';
+      if (upgrades >= 2) return 'improved';
+      return 'fixer';
+    }
+
+    function getStateLabel(state) {
+      if (state === 'finished') return 'Finished';
+      if (state === 'improved') return 'Improved';
+      return 'Fixer';
+    }
+
+    function injectStyles(doc) {
+      if (doc.getElementById('flipCityV3ImageStyles')) return;
+
+      const style = doc.createElement('style');
+      style.id = 'flipCityV3ImageStyles';
+      style.textContent = `
+        .property-image-card {
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 22px;
+          background: rgba(255,255,255,.055);
+          margin-bottom: 16px;
+          box-shadow: 0 16px 36px rgba(0,0,0,.2);
+        }
+        .property-image-card img {
+          display: block;
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          object-fit: cover;
+          background: #07101d;
+        }
+        .property-image-meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          border-top: 1px solid rgba(255,255,255,.1);
+        }
+        .property-image-meta strong {
+          color: #f6f8fb;
+          font-size: .95rem;
+        }
+        .property-image-meta span {
+          color: #9cafc6;
+          font-size: .78rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: .12em;
+        }
+        .property-image-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: .34rem .55rem;
+          color: #07101d !important;
+          background: linear-gradient(135deg, #51d88a, #9effc3);
+          letter-spacing: 0 !important;
+          text-transform: none !important;
+          font-size: .78rem !important;
+        }
+        .property-image-note {
+          color: #9cafc6;
+          font-size: .8rem;
+          line-height: 1.35;
+          padding: 0 12px 12px;
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function decoratePropertyPanel() {
+      const game = frame.contentWindow;
+      const doc = frame.contentDocument;
+      if (!game || !doc || !game.state) return;
+
+      injectStyles(doc);
+
+      const details = doc.querySelector('#details');
+      if (!details) return;
+
+      const selectedId = game.state.selected;
+      const slug = houseImageSlugs[selectedId];
+
+      details.querySelectorAll('.property-image-card').forEach(card => card.remove());
+      if (!slug) return;
+
+      const h = game.house ? game.house(selectedId) : null;
+      const imageState = getImageState(game, selectedId);
+      const imageSrc = `assets/images/houses/${slug}-${imageState}.png`;
+      const upgradeCount = getUpgradeCount(game, selectedId);
+
+      const card = doc.createElement('div');
+      card.className = 'property-image-card';
+      card.innerHTML = `
+        <img src="${imageSrc}" alt="${h ? h.name : slug} ${imageState} state" loading="lazy" />
+        <div class="property-image-meta">
+          <div>
+            <strong>${h ? h.name : 'Property Image'}</strong><br>
+            <span>${upgradeCount} upgrade${upgradeCount === 1 ? '' : 's'} completed</span>
+          </div>
+          <span class="property-image-badge">${getStateLabel(imageState)}</span>
+        </div>
+        <div class="property-image-note">
+          Image changes as renovations stack up: 0–1 upgrades = fixer, 2–4 = improved, 5+ = finished.
+        </div>
+      `;
+
+      details.prepend(card);
+    }
+
+    function patchGame() {
+      const game = frame.contentWindow;
+      const doc = frame.contentDocument;
+      if (!game || !doc) return;
+
+      const details = doc.querySelector('#details');
+      if (!details) {
+        setTimeout(patchGame, 250);
+        return;
+      }
+
+      decoratePropertyPanel();
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(observer._timer);
+        observer._timer = setTimeout(decoratePropertyPanel, 40);
+      });
+
+      observer.observe(details, { childList: true, subtree: false });
+
+      const originalRender = game.render;
+      if (typeof originalRender === 'function' && !game.__flipCityV3RenderPatched) {
+        game.render = function patchedRender() {
+          const result = originalRender.apply(this, arguments);
+          setTimeout(decoratePropertyPanel, 40);
+          return result;
+        };
+        game.__flipCityV3RenderPatched = true;
+      }
+
+      game.addEventListener?.('click', () => setTimeout(decoratePropertyPanel, 60));
+    }
+
+    frame.addEventListener('load', () => {
+      setTimeout(patchGame, 300);
+      setTimeout(decoratePropertyPanel, 700);
+      setTimeout(decoratePropertyPanel, 1400);
+    });
+  </script>
+</body>
+</html>
