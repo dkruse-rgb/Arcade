@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City v4.1 Empire Mode</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #07101d; }
+    iframe { display: block; width: 100%; height: 100vh; border: 0; background: #07101d; }
+  </style>
+</head>
+<body>
+  <iframe id="v4Frame" src="flip-city-v4.html" title="Flip City v4 Empire Mode"></iframe>
+
+  <script>
+    const outerFrame = document.getElementById('v4Frame');
+    const TAX_INTERVAL_DAYS = 90;
+
+    function money(n) {
+      return Number(n || 0).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    }
+
+    function getOuter() {
+      return outerFrame.contentWindow;
+    }
+
+    function getGame() {
+      const outer = getOuter();
+      const gameFrame = outer?.document?.getElementById('gameFrame');
+      return gameFrame?.contentWindow || null;
+    }
+
+    function getGameDoc() {
+      const outer = getOuter();
+      const gameFrame = outer?.document?.getElementById('gameFrame');
+      return gameFrame?.contentDocument || null;
+    }
+
+    function ensureEmpire(game) {
+      if (!game?.state) return null;
+      game.state.empire ||= {};
+      const e = game.state.empire;
+      e.districts ||= [];
+      e.staff ||= [];
+      e.goals ||= [];
+      e.prestige ||= 0;
+      e.feesPaid ||= 0;
+      e.empireDeals ||= 0;
+      e.lastCashSinkDay ||= 0;
+      e.lastTaxDay ||= 0;
+      e.officeOwned ||= false;
+      e.cityHallNamed ||= false;
+      return e;
+    }
+
+    function estimateNetWorth(game) {
+      const outer = getOuter();
+      if (typeof outer?.estimateNetWorth === 'function') return outer.estimateNetWorth(game);
+      let total = game.state?.cash || 0;
+      Object.keys(game.state?.owned || {}).forEach(id => {
+        const h = game.house?.(id);
+        const r = game.state.owned[id];
+        if (h && game.projectValue) total += game.projectValue(h, r).value;
+      });
+      return total;
+    }
+
+    function saveAndRender(game) {
+      try { game.localStorage?.setItem('flip-city-save-v2', JSON.stringify(game.state)); } catch {}
+      try { game.render?.(); } catch {}
+      setTimeout(patchEmpireButtons, 120);
+      setTimeout(patchEmpireButtons, 450);
+    }
+
+    function latestTaxLogDay(game) {
+      const logs = game.state?.log || [];
+      const taxLogs = logs.filter(x => /Quarterly Property Taxes/.test(x.text || ''));
+      if (!taxLogs.length) return 0;
+      return Math.max(...taxLogs.map(x => Number(x.day || 0)));
+    }
+
+    function refundDuplicateSameDayTaxes(game) {
+      const e = ensureEmpire(game);
+      if (!e || e.taxSpamRefundApplied) return;
+
+      const logs = game.state?.log || [];
+      const grouped = {};
+      for (const entry of logs) {
+        const text = entry.text || '';
+        if (!/Quarterly Property Taxes/.test(text)) continue;
+        const amountMatch = text.match(/\$[\d,]+/g);
+        const amountText = amountMatch ? amountMatch[amountMatch.length - 1] : null;
+        const amount = amountText ? Number(amountText.replace(/[$,]/g, '')) : 0;
+        const day = Number(entry.day || 0);
+        if (!grouped[day]) grouped[day] = [];
+        grouped[day].push(amount);
+      }
+
+      let refund = 0;
+      Object.values(grouped).forEach(amounts => {
+        if (amounts.length > 1) refund += amounts.slice(1).reduce((sum, n) => sum + n, 0);
+      });
+
+      if (refund > 0) {
+        game.state.cash += refund;
+        game.log?.(`Tax office corrected duplicate same-day tax payments. Refunded ${money(refund)}.`);
+      }
+
+      const last = latestTaxLogDay(game);
+      if (last) e.lastTaxDay = Math.max(e.lastTaxDay || 0, last);
+      e.taxSpamRefundApplied = true;
+      saveAndRender(game);
+    }
+
+    function getTaxInfo(game) {
+      const e = ensureEmpire(game);
+      const day = Number(game.state?.day || 1);
+      if (!e.lastTaxDay) {
+        const last = latestTaxLogDay(game);
+        if (last) e.lastTaxDay = last;
+      }
+      const lastDay = Number(e.lastTaxDay || 0);
+      const nextDue = lastDay ? lastDay + TAX_INTERVAL_DAYS : day;
+      const due = !lastDay || day >= nextDue;
+      const cost = Math.max(250000, Math.round(estimateNetWorth(game) * 0.018));
+      return { due, day, lastDay, nextDue, cost };
+    }
+
+    function replaceButton(btn, handler) {
+      const clone = btn.cloneNode(true);
+      clone.addEventListener('click', handler);
+      btn.replaceWith(clone);
+      return clone;
+    }
+
+    function patchTaxes(btn, game) {
+      const info = getTaxInfo(game);
+      const card = btn.closest('.empire-item');
+
+      if (card) {
+        const paragraphs = card.querySelectorAll('p');
+        if (paragraphs[0]) {
+          paragraphs[0].textContent = info.due
+            ? 'Taxes are due now. Pay once, then the next bill comes in 90 game days.'
+            : `Taxes are paid. Next tax bill comes on Day ${info.nextDue}.`;
+        }
+        if (paragraphs[1]) paragraphs[1].innerHTML = `<strong>${money(info.cost)}</strong>`;
+      }
+
+      const clone = replaceButton(btn, () => {
+        const freshInfo = getTaxInfo(game);
+        if (!freshInfo.due) {
+          game.toast?.(`Taxes already paid. Next bill: Day ${freshInfo.nextDue}.`);
+          patchEmpireButtons();
+          return;
+        }
+        if ((game.state.cash || 0) < freshInfo.cost) {
+          game.toast?.('Not enough cash to pay taxes.');
+          return;
+        }
+        const ok = confirm(`Pay quarterly property taxes of ${money(freshInfo.cost)}?\n\nNext tax bill will be due on Day ${freshInfo.day + TAX_INTERVAL_DAYS}.`);
+        if (!ok) return;
+        const e = ensureEmpire(game);
+        game.state.cash -= freshInfo.cost;
+        e.feesPaid += freshInfo.cost;
+        e.lastTaxDay = freshInfo.day;
+        game.state.rep = (game.state.rep || 1) + 0.05;
+        game.log?.(`Empire expense paid: Quarterly Property Taxes for ${money(freshInfo.cost)}. Next due Day ${freshInfo.day + TAX_INTERVAL_DAYS}.`);
+        saveAndRender(game);
+      });
+
+      clone.textContent = info.due ? 'Pay Taxes' : `Paid until Day ${info.nextDue}`;
+      clone.disabled = !info.due;
+      if (!info.due) clone.style.opacity = '0.55';
+    }
+
+    function patchOffice(btn, game) {
+      const e = ensureEmpire(game);
+      const card = btn.closest('.empire-item');
+      const cost = 3500000;
+      if (card && e.officeOwned) {
+        const p = card.querySelector('p');
+        if (p) p.textContent = 'Office upgrade purchased. Your empire headquarters is already official.';
+      }
+      const clone = replaceButton(btn, () => {
+        const e = ensureEmpire(game);
+        if (e.officeOwned) {
+          game.toast?.('Real Estate Office is already upgraded.');
+          patchEmpireButtons();
+          return;
+        }
+        if ((game.state.cash || 0) < cost) {
+          game.toast?.('Not enough cash to upgrade the office.');
+          return;
+        }
+        game.state.cash -= cost;
+        e.officeOwned = true;
+        e.feesPaid += cost;
+        game.state.rep = (game.state.rep || 1) + 1.2;
+        game.log?.(`Empire upgrade purchased: Real Estate Office for ${money(cost)}.`);
+        saveAndRender(game);
+      });
+      clone.textContent = e.officeOwned ? 'Purchased' : 'Upgrade Office';
+      clone.disabled = !!e.officeOwned;
+      if (e.officeOwned) clone.style.opacity = '0.55';
+    }
+
+    function patchCityHall(btn, game) {
+      const e = ensureEmpire(game);
+      const card = btn.closest('.empire-item');
+      const cost = 25000000;
+      if (card && e.cityHallNamed) {
+        const p = card.querySelector('p');
+        if (p) p.textContent = 'City Hall already has your name on it. Absurd purchase completed.';
+      }
+      const clone = replaceButton(btn, () => {
+        const e = ensureEmpire(game);
+        if (e.cityHallNamed) {
+          game.toast?.('You already bought City Hall naming rights.');
+          patchEmpireButtons();
+          return;
+        }
+        if ((game.state.cash || 0) < cost) {
+          game.toast?.('Not enough cash to buy that much civic nonsense.');
+          return;
+        }
+        game.state.cash -= cost;
+        e.cityHallNamed = true;
+        e.feesPaid += cost;
+        game.state.rep = (game.state.rep || 1) + 5;
+        game.log?.(`Empire flex purchased: City Hall Naming Rights for ${money(cost)}.`);
+        saveAndRender(game);
+      });
+      clone.textContent = e.cityHallNamed ? 'Purchased' : 'Buy Clout';
+      clone.disabled = !!e.cityHallNamed;
+      if (e.cityHallNamed) clone.style.opacity = '0.55';
+    }
+
+    function patchEmpireButtons() {
+      const game = getGame();
+      const doc = getGameDoc();
+      if (!game || !doc || !game.state) return;
+      const e = ensureEmpire(game);
+      if (!e) return;
+
+      refundDuplicateSameDayTaxes(game);
+
+      const taxBtn = doc.querySelector('[data-sink="taxes"]');
+      if (taxBtn && !taxBtn.dataset.v41Patched) {
+        taxBtn.dataset.v41Patched = 'true';
+        patchTaxes(taxBtn, game);
+      }
+
+      const officeBtn = doc.querySelector('[data-sink="office"]');
+      if (officeBtn && !officeBtn.dataset.v41Patched) {
+        officeBtn.dataset.v41Patched = 'true';
+        patchOffice(officeBtn, game);
+      }
+
+      const cityBtn = doc.querySelector('[data-sink="cityhall"]');
+      if (cityBtn && !cityBtn.dataset.v41Patched) {
+        cityBtn.dataset.v41Patched = 'true';
+        patchCityHall(cityBtn, game);
+      }
+    }
+
+    function startPatching() {
+      const doc = getGameDoc();
+      if (!doc) {
+        setTimeout(startPatching, 300);
+        return;
+      }
+
+      setInterval(patchEmpireButtons, 700);
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(observer._timer);
+        observer._timer = setTimeout(patchEmpireButtons, 80);
+      });
+      observer.observe(doc.body, { childList: true, subtree: true });
+
+      setTimeout(patchEmpireButtons, 500);
+      setTimeout(patchEmpireButtons, 1200);
+      setTimeout(patchEmpireButtons, 2500);
+    }
+
+    outerFrame.addEventListener('load', () => {
+      setTimeout(startPatching, 900);
+    });
+  </script>
+</body>
+</html>
