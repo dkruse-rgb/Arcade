@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City v4.4 District Focus</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #07101d; }
+    iframe { display: block; width: 100%; height: 100vh; border: 0; background: #07101d; }
+  </style>
+</head>
+<body>
+  <iframe id="v42Frame" src="flip-city-v4-2.html" title="Flip City v4.2 Empire Mode"></iframe>
+
+  <script>
+    const wrapperFrame = document.getElementById('v42Frame');
+    const FOCUS_KEY = 'flip-city-map-focus-v2';
+    let focus = localStorage.getItem(FOCUS_KEY) || 'owned-empire';
+
+    const starterDistricts = new Set([
+      'Old Mill','West Blocks','Riverbend','North Ridge','Historic Core','South Loop','Market Square','East Lots',
+      'Copper Heights','Warehouse Row','Lakeview','Founders Park','Cypress Bend','Railspur District'
+    ]);
+
+    const focusOptions = [
+      { id: 'owned-empire', label: 'Owned + Empire' },
+      { id: 'owned', label: 'Owned / Rented' },
+      { id: 'downtown', label: 'Downtown' },
+      { id: 'waterfront', label: 'Waterfront' },
+      { id: 'luxury', label: 'Luxury Hills' },
+      { id: 'commercial', label: 'Commercial Row' },
+      { id: 'starter', label: 'Starter Districts' },
+      { id: 'all', label: 'All Listings' }
+    ];
+
+    function deepFindFrame(win, id) {
+      try {
+        const frame = win?.document?.getElementById(id);
+        return frame?.contentWindow || null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getV42Window() {
+      return wrapperFrame.contentWindow || null;
+    }
+
+    function getV41Window() {
+      return deepFindFrame(getV42Window(), 'v41Frame');
+    }
+
+    function getV4Window() {
+      return deepFindFrame(getV41Window(), 'v4Frame');
+    }
+
+    function getGameWindow() {
+      return deepFindFrame(getV4Window(), 'gameFrame');
+    }
+
+    function getGameDocument() {
+      try { return getGameWindow()?.document || null; } catch { return null; }
+    }
+
+    function safe(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+    }
+
+    function injectFocusStyles(doc) {
+      if (doc.getElementById('flipCityV44MapFocusStyles')) return;
+      const style = doc.createElement('style');
+      style.id = 'flipCityV44MapFocusStyles';
+      style.textContent = `
+        .map-focus-card {
+          border: 1px solid rgba(249,199,79,.24);
+          border-radius: 20px;
+          background: linear-gradient(135deg, rgba(249,199,79,.12), rgba(255,255,255,.055));
+          padding: 12px;
+          margin-bottom: 14px;
+        }
+        .map-focus-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        .map-focus-row strong { color: #f6f8fb; }
+        .map-focus-row span { color: #9cafc6; font-size: .85rem; }
+        .map-focus-buttons {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 4px;
+          -webkit-overflow-scrolling: touch;
+        }
+        .map-focus-button {
+          flex: 0 0 auto;
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 999px;
+          padding: .55rem .72rem;
+          background: rgba(255,255,255,.08);
+          color: #d7e2f1;
+          font-weight: 900;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .map-focus-button.active {
+          color: #07101d;
+          background: linear-gradient(135deg, #f9c74f, #ffe49a);
+          border-color: rgba(249,199,79,.55);
+        }
+        .map-focus-note {
+          margin-top: 9px;
+          color: #9cafc6;
+          font-size: .82rem;
+          line-height: 1.35;
+        }
+        .lot.map-hidden { display: none !important; }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function getAllHouses(game) {
+      try {
+        if (typeof game?.allHouses === 'function') return game.allHouses();
+      } catch {}
+      return [];
+    }
+
+    function getStatus(game, id) {
+      try {
+        if (typeof game?.status === 'function') return game.status(id);
+      } catch {}
+      if (game?.state?.owned?.[id]) return 'owned';
+      if ((game?.state?.sold || []).some(s => s.id === id)) return 'sold';
+      return 'available';
+    }
+
+    function isRented(game, id) {
+      return !!game?.state?.owned?.[id]?.rental?.active;
+    }
+
+    function normalizeLotName(text) {
+      return String(text || '')
+        .replace(/🏠|🏡|🏚️|🏘️|🏢|🌊|🏰|🏬|💵|Rented/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function isEmpireDistrict(district) {
+      return district === 'Downtown' || district === 'Waterfront' || district === 'Luxury Hills' || district === 'Commercial Row';
+    }
+
+    function houseMatchesFocus(game, h) {
+      const status = getStatus(game, h.id);
+      const rented = isRented(game, h.id);
+      const district = h.district || '';
+      const selected = game.state?.selected === h.id;
+
+      if (selected) return true;
+      if (focus === 'all') return true;
+      if (focus === 'owned') return status === 'owned' || rented;
+      if (focus === 'owned-empire') return status === 'owned' || rented || isEmpireDistrict(district);
+
+      if (status === 'owned' || rented) return true;
+      if (focus === 'starter') return starterDistricts.has(district);
+      if (focus === 'downtown') return district === 'Downtown';
+      if (focus === 'waterfront') return district === 'Waterfront';
+      if (focus === 'luxury') return district === 'Luxury Hills';
+      if (focus === 'commercial') return district === 'Commercial Row';
+      return true;
+    }
+
+    function applyMapFocus() {
+      const game = getGameWindow();
+      const doc = getGameDocument();
+      if (!game || !doc || !game.state) return;
+
+      const houses = getAllHouses(game);
+      const city = doc.querySelector('#city');
+      if (!city) return;
+
+      const byName = new Map();
+      houses.forEach(h => byName.set(h.name, h));
+
+      let visible = 0;
+      let hidden = 0;
+
+      city.querySelectorAll('.lot').forEach(lot => {
+        const name = normalizeLotName(lot.innerText || lot.textContent || '');
+        const h = byName.get(name);
+        if (!h) {
+          lot.classList.remove('map-hidden');
+          return;
+        }
+        const show = houseMatchesFocus(game, h);
+        lot.classList.toggle('map-hidden', !show);
+        show ? visible++ : hidden++;
+      });
+
+      const count = doc.querySelector('#mapFocusCount');
+      if (count) count.textContent = `${visible} shown${hidden ? ` · ${hidden} hidden` : ''}`;
+    }
+
+    function renderFocusControls() {
+      const game = getGameWindow();
+      const doc = getGameDocument();
+      if (!game || !doc || !game.state) return;
+      injectFocusStyles(doc);
+
+      const city = doc.querySelector('#city');
+      if (!city) return;
+      const panelBody = city.closest('.panel-body');
+      if (!panelBody) return;
+
+      let card = doc.querySelector('#mapFocusCard');
+      if (!card) {
+        card = doc.createElement('div');
+        card.id = 'mapFocusCard';
+        card.className = 'map-focus-card';
+        panelBody.insertBefore(card, city);
+      }
+
+      const activeLabel = focusOptions.find(o => o.id === focus)?.label || 'Custom';
+      card.innerHTML = `
+        <div class="map-focus-row">
+          <strong>Map Focus</strong>
+          <span id="mapFocusCount">Filtering...</span>
+        </div>
+        <div class="map-focus-buttons">
+          ${focusOptions.map(opt => `<button class="map-focus-button ${focus === opt.id ? 'active' : ''}" data-focus="${opt.id}">${safe(opt.label)}</button>`).join('')}
+        </div>
+        <div class="map-focus-note">Current view: <b>${safe(activeLabel)}</b>. This only cleans up the map; all deals still appear in the Available Houses list.</div>
+      `;
+
+      card.querySelectorAll('[data-focus]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          focus = btn.dataset.focus;
+          localStorage.setItem(FOCUS_KEY, focus);
+          renderFocusControls();
+          applyMapFocus();
+        });
+      });
+
+      applyMapFocus();
+    }
+
+    function patchGameRender() {
+      const game = getGameWindow();
+      if (!game || !game.state || game.__flipCityV44FocusPatched) return;
+
+      const originalRender = game.render;
+      if (typeof originalRender === 'function') {
+        game.render = function patchedRender() {
+          const result = originalRender.apply(this, arguments);
+          setTimeout(renderFocusControls, 80);
+          setTimeout(applyMapFocus, 120);
+          return result;
+        };
+        try { game.window.render = game.render; } catch {}
+      }
+      game.__flipCityV44FocusPatched = true;
+    }
+
+    function patchAll() {
+      patchGameRender();
+      renderFocusControls();
+      applyMapFocus();
+    }
+
+    function startPatching() {
+      const doc = getGameDocument();
+      if (!doc?.body) {
+        setTimeout(startPatching, 350);
+        return;
+      }
+
+      patchAll();
+      setInterval(patchAll, 1000);
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(observer._timer);
+        observer._timer = setTimeout(patchAll, 80);
+      });
+      observer.observe(doc.body, { childList: true, subtree: true });
+
+      setTimeout(patchAll, 600);
+      setTimeout(patchAll, 1400);
+      setTimeout(patchAll, 3000);
+    }
+
+    wrapperFrame.addEventListener('load', () => {
+      setTimeout(startPatching, 1700);
+    });
+  </script>
+</body>
+</html>
