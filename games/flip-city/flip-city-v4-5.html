@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City v4.5 Mobile Map Focus Fix</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #07101d; }
+    iframe { display: block; width: 100%; height: 100vh; border: 0; background: #07101d; }
+  </style>
+</head>
+<body>
+  <iframe id="v44Frame" src="flip-city-v4-4.html" title="Flip City v4.4 District Focus"></iframe>
+
+  <script>
+    const wrapperFrame = document.getElementById('v44Frame');
+
+    function deepFindFrame(win, id) {
+      try {
+        const frame = win?.document?.getElementById(id);
+        return frame?.contentWindow || null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getV44Window() {
+      return wrapperFrame.contentWindow || null;
+    }
+
+    function getV42Window() {
+      return deepFindFrame(getV44Window(), 'v42Frame');
+    }
+
+    function getV41Window() {
+      return deepFindFrame(getV42Window(), 'v41Frame');
+    }
+
+    function getV4Window() {
+      return deepFindFrame(getV41Window(), 'v4Frame');
+    }
+
+    function getGameWindow() {
+      return deepFindFrame(getV4Window(), 'gameFrame');
+    }
+
+    function getGameDocument() {
+      try { return getGameWindow()?.document || null; } catch { return null; }
+    }
+
+    function injectMobileFocusFix() {
+      const doc = getGameDocument();
+      if (!doc?.head) return;
+      if (doc.getElementById('flipCityV45MobileFocusFix')) return;
+
+      const style = doc.createElement('style');
+      style.id = 'flipCityV45MobileFocusFix';
+      style.textContent = `
+        .map-focus-card {
+          max-width: 100% !important;
+          overflow: hidden !important;
+        }
+        .map-focus-row {
+          align-items: flex-start !important;
+          flex-wrap: wrap !important;
+        }
+        .map-focus-row span {
+          white-space: normal !important;
+        }
+        .map-focus-buttons {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          overflow-x: visible !important;
+          gap: 8px !important;
+          padding-bottom: 0 !important;
+        }
+        .map-focus-button {
+          flex: 1 1 calc(50% - 8px) !important;
+          min-width: 132px !important;
+          max-width: 100% !important;
+          text-align: center !important;
+          white-space: normal !important;
+          line-height: 1.15 !important;
+        }
+        @media (max-width: 420px) {
+          .map-focus-button {
+            flex-basis: 100% !important;
+            width: 100% !important;
+          }
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    function patchAll() {
+      injectMobileFocusFix();
+    }
+
+    function startPatching() {
+      const doc = getGameDocument();
+      if (!doc?.body) {
+        setTimeout(startPatching, 350);
+        return;
+      }
+
+      patchAll();
+      setInterval(patchAll, 900);
+
+      const observer = new MutationObserver(() => {
+        clearTimeout(observer._timer);
+        observer._timer = setTimeout(patchAll, 80);
+      });
+      observer.observe(doc.body, { childList: true, subtree: true });
+
+      setTimeout(patchAll, 600);
+      setTimeout(patchAll, 1400);
+      setTimeout(patchAll, 3000);
+    }
+
+    wrapperFrame.addEventListener('load', () => {
+      setTimeout(startPatching, 1800);
+    });
+  </script>
+</body>
+</html>
