@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skillscape | Arcade of Dustin</title>
+  <style>
+    :root { color-scheme: dark; --bg:#020617; --panel:rgba(15,23,42,.88); --panel2:rgba(30,41,59,.72); --text:#e5e7eb; --muted:#94a3b8; --green:#22c55e; --blue:#38bdf8; --pink:#f472b6; --gold:#fbbf24; --red:#fb7185; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--text); background:radial-gradient(circle at 20% 0%,rgba(34,197,94,.22),transparent 32rem),radial-gradient(circle at 85% 8%,rgba(56,189,248,.17),transparent 30rem),radial-gradient(circle at 65% 90%,rgba(244,114,182,.15),transparent 26rem),var(--bg); min-height:100vh; }
+    a { color:inherit; } button { font:inherit; color:inherit; border:0; cursor:pointer; }
+    .wrap { width:min(1280px,100%); margin:0 auto; padding:1rem; }
+    .hero { border:1px solid rgba(255,255,255,.12); border-radius:28px; padding:clamp(1rem,4vw,2rem); background:linear-gradient(135deg,rgba(6,78,59,.76),rgba(15,23,42,.86) 52%,rgba(120,53,15,.72)); box-shadow:0 22px 60px rgba(0,0,0,.38); overflow:hidden; position:relative; }
+    .hero:before { content:""; position:absolute; inset:-2px; background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px); background-size:34px 34px; mask-image:linear-gradient(90deg,rgba(0,0,0,.8),transparent); pointer-events:none; }
+    .hero-inner { position:relative; display:flex; gap:1rem; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+    h1 { margin:0; font-size:clamp(2.2rem,7vw,5rem); line-height:.95; letter-spacing:-.06em; }
+    .tagline { max-width:44rem; color:#d1d5db; line-height:1.5; margin:.8rem 0 0; }
+    .top-stats { display:grid; grid-template-columns:repeat(3,minmax(82px,1fr)); gap:.6rem; min-width:min(100%,360px); }
+    .stat-pill { background:rgba(0,0,0,.27); border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:.85rem; text-align:center; }
+    .stat-pill strong { display:block; font-size:1.25rem; } .stat-pill span { color:var(--muted); font-size:.78rem; }
+    .nav-row { display:flex; flex-wrap:wrap; gap:.6rem; margin:1rem 0; }
+    .nav-row a,.small-btn,.primary-btn { display:inline-flex; align-items:center; justify-content:center; gap:.35rem; padding:.72rem .9rem; border-radius:999px; text-decoration:none; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.12); transition:transform .15s ease, background .15s ease; }
+    .nav-row a:hover,.small-btn:hover,.primary-btn:hover { transform:translateY(-1px); background:rgba(255,255,255,.16); }
+    .primary-btn { background:linear-gradient(90deg,rgba(56,189,248,.92),rgba(34,197,94,.92)); color:#02111f; font-weight:800; }
+    .grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr); gap:1rem; align-items:start; }
+    .panel { background:var(--panel); border:1px solid rgba(255,255,255,.1); border-radius:24px; padding:1rem; box-shadow:0 14px 38px rgba(0,0,0,.28); backdrop-filter:blur(10px); }
+    .panel h2 { margin:0 0 .8rem; font-size:1.25rem; display:flex; align-items:center; gap:.45rem; }
+    .zone-grid,.action-grid,.quest-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; } .quest-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .tile { border-radius:18px; background:var(--panel2); border:1px solid rgba(255,255,255,.1); padding:.9rem; min-height:92px; text-align:left; position:relative; overflow:hidden; }
+    .tile:not(.locked):hover { background:rgba(51,65,85,.9); } .tile.active { outline:2px solid rgba(56,189,248,.78); } .tile.locked { opacity:.52; cursor:not-allowed; }
+    .tile h3,.tile h4 { margin:0 0 .35rem; } .tile p { margin:0; color:var(--muted); line-height:1.45; font-size:.92rem; }
+    .badge { display:inline-flex; border-radius:999px; background:rgba(0,0,0,.26); border:1px solid rgba(255,255,255,.1); padding:.22rem .48rem; font-size:.72rem; color:#dbeafe; margin-top:.45rem; }
+    .progress-shell { height:13px; border-radius:999px; overflow:hidden; background:rgba(0,0,0,.32); margin:.4rem 0 1rem; border:1px solid rgba(255,255,255,.08); }
+    .progress-bar { height:100%; width:0%; border-radius:999px; background:linear-gradient(90deg,var(--blue),var(--green),var(--gold)); transition:width .08s linear; }
+    .side-stack { display:grid; gap:1rem; }
+    .skill { background:rgba(0,0,0,.2); border-radius:16px; padding:.75rem; margin:.55rem 0; border:1px solid rgba(255,255,255,.07); }
+    .skill-head { display:flex; justify-content:space-between; align-items:center; gap:1rem; font-size:.9rem; } .skill small { color:var(--muted); }
+    .mini-bar { height:8px; background:rgba(0,0,0,.35); border-radius:999px; overflow:hidden; margin-top:.45rem; } .mini-fill { height:100%; background:rgba(255,255,255,.72); border-radius:999px; }
+    .inventory-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+    .item-btn { text-align:left; border-radius:14px; padding:.68rem; background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.08); } .item-btn:hover { background:rgba(255,255,255,.1); } .item-btn strong { display:block; } .item-btn span { color:var(--muted); font-size:.78rem; }
+    .shop-item { display:flex; justify-content:space-between; gap:.7rem; align-items:center; padding:.75rem; margin:.5rem 0; border-radius:16px; background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.08); } .shop-item p { margin:.18rem 0 0; color:var(--muted); font-size:.82rem; } .shop-item button:disabled { opacity:.45; cursor:not-allowed; }
+    .log-line { padding:.65rem; border-radius:14px; background:rgba(0,0,0,.22); color:#d1d5db; margin:.45rem 0; line-height:1.35; font-size:.9rem; }
+    .complete { background:rgba(34,197,94,.16); border-color:rgba(34,197,94,.36); } .danger { color:#fecdd3; }
+    .tools { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.55rem; } .tool { font-size:.75rem; color:#cbd5e1; padding:.25rem .5rem; background:rgba(0,0,0,.24); border-radius:999px; }
+    @media (max-width:940px) { .grid { grid-template-columns:1fr; } .quest-grid { grid-template-columns:1fr; } }
+    @media (max-width:620px) { .wrap { padding:.75rem; } .zone-grid,.action-grid,.inventory-grid { grid-template-columns:1fr; } .top-stats { grid-template-columns:repeat(3,1fr); width:100%; min-width:0; } .stat-pill { padding:.65rem .35rem; } .shop-item { align-items:flex-start; flex-direction:column; } .shop-item button { width:100%; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-inner">
+        <div>
+          <h1>Skillscape</h1>
+          <p class="tagline">Old-school upgrade RPG energy: gather resources, train skills, sell loot, buy better tools, unlock zones, and slowly become a problem for the local goblin population.</p>
+          <div class="nav-row">
+            <a href="../../index.html">← Back to Arcade</a>
+            <button class="small-btn" id="saveBtn">Save</button>
+            <button class="small-btn" id="resetBtn">Reset</button>
+          </div>
+        </div>
+        <div class="top-stats">
+          <div class="stat-pill"><strong id="gold">0</strong><span>Gold</span></div>
+          <div class="stat-pill"><strong id="totalLevel">0</strong><span>Total Lv</span></div>
+          <div class="stat-pill"><strong id="hp">0/0</strong><span>HP</span></div>
+        </div>
+      </div>
+    </section>
+    <div class="grid">
+      <main class="side-stack">
+        <section class="panel"><h2>🗺️ World</h2><div class="zone-grid" id="zones"></div></section>
+        <section class="panel"><h2>⭐ Actions <span class="badge" id="doing">Idle</span></h2><div class="progress-shell"><div class="progress-bar" id="actionProgress"></div></div><div class="action-grid" id="actions"></div></section>
+        <section class="panel"><h2>📜 Quests</h2><div class="quest-grid" id="quests"></div></section>
+      </main>
+      <aside class="side-stack">
+        <section class="panel"><h2>⚡ Skills</h2><div id="skills"></div></section>
+        <section class="panel"><h2>🎒 Inventory</h2><div class="nav-row"><button class="primary-btn" id="eatBtn">Eat cooked fish</button><button class="small-btn" id="restBtn">Rest</button></div><div class="inventory-grid" id="inventory"></div></section>
+        <section class="panel"><h2>🏪 Shop</h2><div id="shop"></div></section>
+        <section class="panel"><h2>☠️ Activity Log</h2><div id="log"></div></section>
+      </aside>
+    </div>
+  </div>
+  <script>
+    const SAVE_KEY = "arcade_skillscape_save_v1";
+    const startState = { gold:25, hp:30, maxHp:30, selectedZone:"Village", currentAction:null, actionStarted:0, inventory:{logs:0, oakLogs:0, copperOre:0, ironOre:0, rawFish:0, cookedFish:0, goblinEars:0, bones:0}, tools:{axe:1, pickaxe:1, rod:1, sword:1, pan:1}, skills:{woodcutting:0, mining:0, fishing:0, cooking:0, combat:0, smithing:0}, quests:{firstLogs:false, copperStarter:false, goblinProblem:false}, unlockedZones:["Village","Copper Hills"], log:["Welcome to Skillscape. You own 25 gold and exactly zero dignity."] };
+    const skillNames = { woodcutting:"Woodcutting", mining:"Mining", fishing:"Fishing", cooking:"Cooking", combat:"Combat", smithing:"Smithing" };
+    const toolNames = { axe:"Axe", pickaxe:"Pickaxe", rod:"Rod", sword:"Sword", pan:"Pan" };
+    const zones = { "Village":{text:"Safe starter town with trees, a pond, and shopkeepers who pretend this is normal.", actions:["chopLogs","fish","cookFish","fightRat"]}, "Copper Hills":{text:"Rocky hills full of ore and goblins with terrible judgment.", actions:["mineCopper","mineIron","smithGoods","fightGoblin"]}, "Oakwood Grove":{text:"Better trees, better logs, better excuse to ignore real life.", actions:["chopOak","fightGoblin"]}, "Bandit Outskirts":{text:"Tougher enemies, better gold, deeply questionable city planning.", actions:["fightBandit"]} };
+    const actions = { chopLogs:{label:"Chop normal trees",skill:"woodcutting",tool:"axe",req:1,seconds:2.4,xp:8,rewards:{logs:1},msg:"You chopped logs."}, chopOak:{label:"Chop oak trees",skill:"woodcutting",tool:"axe",req:8,seconds:3.4,xp:18,rewards:{oakLogs:1},msg:"You chopped oak logs. Fancy tree crime."}, mineCopper:{label:"Mine copper ore",skill:"mining",tool:"pickaxe",req:1,seconds:2.7,xp:9,rewards:{copperOre:1},msg:"You mined copper ore."}, mineIron:{label:"Mine iron ore",skill:"mining",tool:"pickaxe",req:6,seconds:3.5,xp:17,rewards:{ironOre:1},msg:"You mined iron ore."}, fish:{label:"Fish at the pond",skill:"fishing",tool:"rod",req:1,seconds:3,xp:10,rewards:{rawFish:1},msg:"You caught a fish."}, cookFish:{label:"Cook fish",skill:"cooking",tool:"pan",req:1,seconds:2,xp:9,consumes:{rawFish:1},rewards:{cookedFish:1},msg:"You cooked a fish."}, smithGoods:{label:"Practice smithing",skill:"smithing",req:1,seconds:3,xp:14,consumes:{copperOre:1,logs:1},rewards:{gold:7},msg:"You smelted trade goods and sold them."}, fightRat:{label:"Fight giant rat",skill:"combat",tool:"sword",req:1,seconds:2.5,xp:8,damage:2,rewards:{bones:1,gold:3},msg:"You defeated a giant rat. Heroic? Technically."}, fightGoblin:{label:"Fight goblin",skill:"combat",tool:"sword",req:4,seconds:3.5,xp:18,damage:5,rewards:{goblinEars:1,bones:1,gold:8},msg:"You bonked a goblin and took its loot."}, fightBandit:{label:"Fight bandit",skill:"combat",tool:"sword",req:10,seconds:4,xp:36,damage:9,rewards:{bones:1,gold:24},msg:"You beat a bandit. The economy trembles."} };
+    const shop = [{name:"Bronze Axe",type:"tool",tool:"axe",level:2,cost:60,desc:"+Woodcutting speed"},{name:"Bronze Pickaxe",type:"tool",tool:"pickaxe",level:2,cost:60,desc:"+Mining speed"},{name:"Rusty Sword",type:"tool",tool:"sword",level:2,cost:75,desc:"+Combat speed"},{name:"Better Rod",type:"tool",tool:"rod",level:2,cost:55,desc:"+Fishing speed"},{name:"Iron Pan",type:"tool",tool:"pan",level:2,cost:45,desc:"+Cooking speed"},{name:"Map to Oakwood Grove",type:"zone",zone:"Oakwood Grove",cost:180,desc:"Unlock oak trees"},{name:"Bandit Outskirts Permit",type:"zone",zone:"Bandit Outskirts",cost:400,desc:"Unlock stronger fights"},{name:"Thicker Boots",type:"hp",amount:10,cost:125,desc:"+10 max HP"}];
+    const prices = {logs:2, oakLogs:7, copperOre:3, ironOre:8, rawFish:3, cookedFish:6, goblinEars:10, bones:2};
+    let game = load(); let timer = null;
+    function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+    function load(){ try { const saved = JSON.parse(localStorage.getItem(SAVE_KEY)); return saved ? merge(startState,saved) : clone(startState); } catch { return clone(startState); } }
+    function merge(base,saved){ const out=clone(base); Object.assign(out,saved); out.inventory={...base.inventory,...(saved.inventory||{})}; out.tools={...base.tools,...(saved.tools||{})}; out.skills={...base.skills,...(saved.skills||{})}; out.quests={...base.quests,...(saved.quests||{})}; out.unlockedZones=saved.unlockedZones||base.unlockedZones; out.log=saved.log||base.log; out.currentAction=null; return out; }
+    function save(){ localStorage.setItem(SAVE_KEY, JSON.stringify(game)); }
+    function level(xp){ let lv=1; while(xp>=xpFor(lv+1)) lv++; return lv; }
+    function xpFor(lv){ return Math.floor(50*Math.pow(lv,1.55)); }
+    function percent(xp){ const lv=level(xp), prev=xpFor(lv), next=xpFor(lv+1); return Math.max(0,Math.min(100,Math.round(((xp-prev)/(next-prev))*100))); }
+    function nice(key){ return key.replace(/([A-Z])/g," $1").replace(/^./, c=>c.toUpperCase()); }
+    function addLog(text){ game.log=[text,...game.log].slice(0,8); }
+    function hasItems(consumes={}){ return Object.entries(consumes).every(([item,qty])=>(game.inventory[item]||0)>=qty); }
+    function duration(action){ const boost=action.tool ? game.tools[action.tool]||1 : 1; return Math.max(.75, action.seconds/(1+(boost-1)*.35)); }
+    function startAction(id){ if(game.currentAction) return; const action=actions[id]; if(!action) return; if(level(game.skills[action.skill])<action.req){ addLog(`You need ${skillNames[action.skill]} level ${action.req} first.`); render(); return; } if(!hasItems(action.consumes)){ addLog("You do not have the required items."); render(); return; } if(action.damage && game.hp<=action.damage){ addLog("You are too beat up. Eat cooked fish or rest first."); render(); return; } game.currentAction=id; game.actionStarted=Date.now(); save(); render(); loopAction(); }
+    function loopAction(){ clearInterval(timer); const id=game.currentAction; if(!id) return; const action=actions[id]; timer=setInterval(()=>{ const elapsed=(Date.now()-game.actionStarted)/1000; const pct=Math.min(100,Math.round((elapsed/duration(action))*100)); document.getElementById("actionProgress").style.width=pct+"%"; if(pct>=100){ clearInterval(timer); completeAction(id); } },90); }
+    function completeAction(id){ const action=actions[id]; if(!action || game.currentAction!==id) return; if(!hasItems(action.consumes)){ game.currentAction=null; addLog("The action failed because you ran out of supplies."); save(); render(); return; } Object.entries(action.consumes||{}).forEach(([item,qty])=>game.inventory[item]-=qty); Object.entries(action.rewards||{}).forEach(([item,qty])=>{ if(item==="gold") game.gold+=qty; else game.inventory[item]=(game.inventory[item]||0)+qty; }); const oldLevel=level(game.skills[action.skill]); const toolLevel=action.tool ? game.tools[action.tool]||1 : 1; const xpGain=Math.round(action.xp*(1+(toolLevel-1)*.15)); game.skills[action.skill]+=xpGain; const newLevel=level(game.skills[action.skill]); if(action.damage) game.hp=Math.max(0,game.hp-action.damage); game.currentAction=null; let msg=`${action.msg} +${xpGain} ${skillNames[action.skill]} XP.`; if(newLevel>oldLevel) msg += ` Level up: ${skillNames[action.skill]} ${newLevel}!`; addLog(msg); checkQuests(); save(); render(); }
+    function checkQuests(){ if(!game.quests.firstLogs && game.inventory.logs>=10){ game.quests.firstLogs=true; game.gold+=35; addLog("Quest complete: Lumber Errand. Reward: 35 gold."); } if(!game.quests.copperStarter && game.inventory.copperOre>=12){ game.quests.copperStarter=true; game.gold+=45; addLog("Quest complete: Copper Starter. Reward: 45 gold."); } if(!game.quests.goblinProblem && game.inventory.goblinEars>=6){ game.quests.goblinProblem=true; game.gold+=90; if(!game.unlockedZones.includes("Bandit Outskirts")) game.unlockedZones.push("Bandit Outskirts"); addLog("Quest complete: Goblin Problem. Reward: 90 gold and Bandit Outskirts access."); } }
+    function buy(index){ const item=shop[index]; if(game.gold<item.cost){ addLog(`You need ${item.cost} gold for ${item.name}.`); render(); return; } if(item.type==="tool" && game.tools[item.tool]>=item.level) return; if(item.type==="zone" && game.unlockedZones.includes(item.zone)) return; game.gold-=item.cost; if(item.type==="tool") game.tools[item.tool]=item.level; if(item.type==="zone") game.unlockedZones.push(item.zone); if(item.type==="hp"){ game.maxHp+=item.amount; game.hp+=item.amount; } addLog(`Bought ${item.name}.`); save(); render(); }
+    function sell(item){ const qty=game.inventory[item]||0; if(!qty){ addLog(`You do not have any ${nice(item)} to sell.`); render(); return; } const gain=qty*prices[item]; game.inventory[item]=0; game.gold+=gain; addLog(`Sold ${qty} ${nice(item)} for ${gain} gold.`); save(); render(); }
+    function eatFish(){ if((game.inventory.cookedFish||0)<=0) addLog("No cooked fish to eat."); else { const heal=10+level(game.skills.cooking); game.inventory.cookedFish--; game.hp=Math.min(game.maxHp,game.hp+heal); addLog(`You ate cooked fish and healed ${heal} HP.`); } save(); render(); }
+    function rest(){ game.hp=game.maxHp; addLog("You rested at the village inn. Free healthcare, suspiciously rare."); save(); render(); }
+    function resetGame(){ if(!confirm("Reset Skillscape progress?")) return; localStorage.removeItem(SAVE_KEY); game=clone(startState); clearInterval(timer); render(); }
+    function render(){ document.getElementById("gold").textContent=game.gold; const levels=Object.fromEntries(Object.entries(game.skills).map(([k,xp])=>[k,level(xp)])); document.getElementById("totalLevel").textContent=Object.values(levels).reduce((a,b)=>a+b,0); document.getElementById("hp").textContent=`${game.hp}/${game.maxHp}`; document.getElementById("doing").textContent=game.currentAction ? actions[game.currentAction].label : "Idle"; if(!game.currentAction) document.getElementById("actionProgress").style.width="0%";
+      document.getElementById("zones").innerHTML=Object.entries(zones).map(([name,zone])=>{ const unlocked=game.unlockedZones.includes(name), active=game.selectedZone===name; return `<button class="tile ${active?"active":""} ${unlocked?"":"locked"}" ${unlocked?`onclick="selectZone('${name}')"`:""}><h3>${name}</h3><p>${zone.text}</p><span class="badge">${unlocked?"Unlocked":"Locked"}</span></button>`; }).join("");
+      document.getElementById("actions").innerHTML=zones[game.selectedZone].actions.map(id=>{ const a=actions[id], locked=levels[a.skill]<a.req, lacks=!hasItems(a.consumes), blocked=locked||lacks||!!game.currentAction; return `<button class="tile ${blocked?"locked":""}" ${blocked?"":`onclick="startAction('${id}')"`}><h3>${a.label}</h3><p>${skillNames[a.skill]} Lv ${a.req} • +${a.xp} XP ${a.tool?`• ${toolNames[a.tool]} ${game.tools[a.tool]}`:""}</p>${a.consumes?`<span class="badge">Needs ${Object.entries(a.consumes).map(([k,v])=>`${v} ${nice(k)}`).join(", ")}</span>`:""}${a.damage?`<span class="badge danger">Risk -${a.damage} HP</span>`:""}</button>`; }).join("");
+      const questData=[["firstLogs","Lumber Errand","Collect 10 logs. Reward: 35 gold."],["copperStarter","Copper Starter","Collect 12 copper ore. Reward: 45 gold."],["goblinProblem","Goblin Problem","Collect 6 goblin ears. Reward: 90 gold + zone access."]]; document.getElementById("quests").innerHTML=questData.map(([key,title,desc])=>`<div class="tile ${game.quests[key]?"complete":""}"><h4>${title}</h4><p>${desc}</p><span class="badge">${game.quests[key]?"Complete":"Open"}</span></div>`).join("");
+      document.getElementById("skills").innerHTML=Object.entries(game.skills).map(([skill,xp])=>`<div class="skill"><div class="skill-head"><strong>${skillNames[skill]}</strong><small>Lv ${levels[skill]} • ${xp} XP</small></div><div class="mini-bar"><div class="mini-fill" style="width:${percent(xp)}%"></div></div></div>`).join("");
+      document.getElementById("inventory").innerHTML=Object.entries(game.inventory).map(([item,qty])=>`<button class="item-btn" onclick="sell('${item}')"><strong>${nice(item)}</strong><span>Qty ${qty} • Sell ${prices[item]}g each</span></button>`).join("");
+      document.getElementById("shop").innerHTML=shop.map((item,i)=>{ const owned=item.type==="tool" ? game.tools[item.tool]>=item.level : item.type==="zone" ? game.unlockedZones.includes(item.zone) : false; return `<div class="shop-item"><div><strong>${item.name}</strong><p>${item.desc}</p></div><button class="small-btn" ${owned||game.gold<item.cost?"disabled":""} onclick="buy(${i})">${owned?"Owned":item.cost+"g"}</button></div>`; }).join("");
+      document.getElementById("log").innerHTML=game.log.map(line=>`<div class="log-line">${line}</div>`).join(""); const toolText=Object.entries(game.tools).map(([k,v])=>`${toolNames[k]} ${v}`).join(" • "); if(!document.getElementById("toolRow")){ const div=document.createElement("div"); div.id="toolRow"; div.className="tools"; document.querySelector("#shop").before(div); } document.getElementById("toolRow").innerHTML=toolText.split(" • ").map(t=>`<span class="tool">${t}</span>`).join(""); }
+    function selectZone(name){ game.selectedZone=name; save(); render(); }
+    document.getElementById("saveBtn").addEventListener("click",()=>{ save(); addLog("Game saved."); render(); }); document.getElementById("resetBtn").addEventListener("click",resetGame); document.getElementById("eatBtn").addEventListener("click",eatFish); document.getElementById("restBtn").addEventListener("click",rest); window.startAction=startAction; window.selectZone=selectZone; window.sell=sell; window.buy=buy; render();
+  </script>
+</body>
+</html>
