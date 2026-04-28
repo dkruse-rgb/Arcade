@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flip City</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      background: #07101d;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(10, 18, 31, 0.96);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f6f8fb;
+    }
+    .brand {
+      font-weight: 900;
+      letter-spacing: 0.02em;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 0.65rem 0.9rem;
+      color: #07101d;
+      background: linear-gradient(135deg, #51d88a, #9effc3);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: calc(100vh - 56px);
+      border: 0;
+      background: #07101d;
+    }
+    @media (max-width: 560px) {
+      .topbar { height: 52px; padding: 8px 10px; }
+      .brand { font-size: 0.95rem; }
+      .back-link { padding: 0.55rem 0.72rem; font-size: 0.9rem; }
+      iframe { height: calc(100vh - 52px); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="../../index.html">← Back to Arcade</a>
+    <div class="brand">Flip City</div>
+  </header>
+  <iframe src="flip-city-infinite-overlay.html" title="Flip City game"></iframe>
+</body>
+</html>
