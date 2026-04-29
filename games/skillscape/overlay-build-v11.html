@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape Overlay V11</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="outerFrame" src="overlay-build-v9.html?v=partial-shop-selling-1" title="Skillscape Overlay V11"></iframe>
+  <script>
+    const outerFrame=document.getElementById('outerFrame');
+
+    function addStyle(d){
+      if(!d||d.getElementById('v11ShopSellPatch'))return;
+      const style=d.createElement('style');
+      style.id='v11ShopSellPatch';
+      style.textContent=`
+        .overlay{
+          align-items:flex-start!important;
+          justify-content:center!important;
+          padding:8vh .75rem .75rem!important;
+        }
+        .modal{margin-top:0!important;max-height:82vh!important;}
+        .sellControls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;margin-top:.55rem}
+        .sellControls button{justify-content:center;padding:.48rem .35rem;font-size:.82rem}
+        .sellCounts{display:flex;gap:.4rem;flex-wrap:wrap;margin:.35rem 0}
+        .sellCounts span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.2rem .48rem;font-size:.82rem;color:#cbd5e1}
+        @media(max-width:420px){
+          .overlay{padding:6vh .55rem .55rem!important;}
+          .modal{max-height:84vh!important;}
+          .sellControls{grid-template-columns:repeat(2,minmax(0,1fr))}
+          .sellControls button{font-size:.78rem}
+        }
+        @media(min-width:900px){
+          .overlay{align-items:center!important;padding:1rem!important;}
+          .modal{max-height:86vh!important;}
+        }
+      `;
+      d.head.appendChild(style);
+    }
+
+    function patchGame(w,d){
+      if(!w||!d)return;
+      addStyle(d);
+      try{
+        w.eval(`
+          if(!window.__partialShopSellPatch){
+            window.__partialShopSellPatch=true;
+
+            window.sellShopAmount=function(itemKey,amount){
+              if(s.zone!=='Shop'||!nearKind('shop')){
+                addLog('Enter the shop and stand by the counter first.');
+                render();
+                return;
+              }
+              const qty=s.inv[itemKey]||0;
+              const move=Math.max(0,Math.min(amount,qty));
+              if(!move){
+                addLog('No '+nice(itemKey)+' to sell.');
+                openPanel('shop');
+                return;
+              }
+              const gain=move*(prices[itemKey]||0);
+              s.inv[itemKey]-=move;
+              s.gold+=gain;
+              addLog('Sold '+move+' '+nice(itemKey)+' for '+gain+' gold.');
+              save();
+              openPanel('shop');
+            };
+
+            window.sellShopAllOf=function(itemKey){
+              sellShopAmount(itemKey,s.inv[itemKey]||0);
+            };
+
+            window.sellShopAll=function(){
+              if(s.zone!=='Shop'||!nearKind('shop')){
+                addLog('Enter the shop and stand by the counter first.');
+                render();
+                return;
+              }
+              let sold=0,gain=0;
+              ITEMS.forEach(k=>{
+                const qty=s.inv[k]||0;
+                if(qty>0){
+                  sold+=qty;
+                  gain+=qty*(prices[k]||0);
+                  s.inv[k]=0;
+                }
+              });
+              if(!sold){
+                addLog('Nothing to sell.');
+              }else{
+                s.gold+=gain;
+                addLog('Sold '+sold+' items for '+gain+' gold.');
+                save();
+              }
+              openPanel('shop');
+            };
+
+            shopHTML=function(){
+              const buyRows=shop.map((it,i)=>{
+                const owned=it[1]==='tool'?s.tools[it[2]]>=it[3]:it[1]==='gear'?s.owned.includes(it[2]):it[1]==='zone'?s.unlocks.includes(it[2]):it[1]==='bag'?s.bagUpgraded:false;
+                return '<div class="shopRow"><div><b>'+it[0]+'</b><p class="muted">'+it[5]+'</p></div><button class="btn" '+(owned||s.gold<it[4]?'disabled':'')+' onclick="buy('+i+')">'+(owned?'Owned':it[4]+'g')+'</button></div>';
+              }).join('');
+
+              const sellRows=ITEMS.map(k=>{
+                const qty=s.inv[k]||0;
+                const each=prices[k]||0;
+                const total=qty*each;
+                return '<div class="item"><b>'+nice(k)+'</b><div class="sellCounts"><span>Carry: '+qty+'</span><span>'+each+'g each</span><span>Total: '+total+'g</span></div><div class="sellControls"><button class="btn" '+(qty<=0?'disabled':'')+' onclick="sellShopAmount(\\''+k+'\\',1)">Sell 1</button><button class="btn" '+(qty<=0?'disabled':'')+' onclick="sellShopAmount(\\''+k+'\\',5)">Sell 5</button><button class="btn" '+(qty<=0?'disabled':'')+' onclick="sellShopAllOf(\\''+k+'\\')">Sell All</button></div></div>';
+              }).join('');
+
+              return buyRows+
+                '<hr style="border-color:#ffffff22;margin:1rem 0">'+
+                '<h3>Sell Items</h3>'+
+                '<p class="muted">Sell part of a stack, one stack, or everything you are carrying. Banked items stay safe.</p>'+
+                '<div class="nav"><button class="primary" onclick="sellShopAll()">Sell all inventory</button></div>'+
+                '<div class="mini">'+sellRows+'</div>';
+            };
+          }
+        `);
+      }catch(e){console.warn('partial shop sell patch failed',e);}
+    }
+
+    function patch(){
+      try{
+        const outerDoc=outerFrame.contentDocument;
+        addStyle(outerDoc);
+        const gameFrame=outerDoc && outerDoc.getElementById('gameFrame');
+        const gameDoc=gameFrame && gameFrame.contentDocument;
+        const gameWin=gameFrame && gameFrame.contentWindow;
+        patchGame(gameWin,gameDoc);
+      }catch(e){return;}
+    }
+
+    outerFrame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{
+        patch();
+        ticks++;
+        if(ticks>40)clearInterval(t);
+      },250);
+    });
+
+    setInterval(patch,800);
+  </script>
+</body>
+</html>
