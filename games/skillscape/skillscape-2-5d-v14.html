@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V14</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v14Frame" src="skillscape-2-5d-v13.html?v=copper-hills-zone-1" title="Skillscape 2.5D Prototype V14"></iframe>
+  <script>
+    const v14Frame=document.getElementById('v14Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>22)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        for(const f of [...doc.querySelectorAll('iframe')]){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v14Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v14ZoneStyle')){
+        const style=d.createElement('style');
+        style.id='v14ZoneStyle';
+        style.textContent=`
+          .zoneTravelBox{background:rgba(30,41,59,.86);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:1rem;line-height:1.38}
+          .zoneTravelBox p{color:#94a3b8}.zoneTravelActions{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.75rem}
+          .zoneBadge{display:inline-flex;border-radius:999px;background:rgba(56,189,248,.13);border:1px solid rgba(56,189,248,.25);padding:.22rem .55rem;color:#bae6fd;font-size:.82rem;font-weight:800}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v14CopperHillsZone){
+            window.__v14CopperHillsZone=true;
+
+            state.zone=state.zone||'Village';
+            state.zoneSpawns={Village:{x:21.4,y:13.2},CopperHills:{x:2.6,y:12.8},...(state.zoneSpawns||{})};
+
+            function cloneEntity(e){return JSON.parse(JSON.stringify(e))}
+            window.__v14VillageEntities=entities.map(cloneEntity);
+
+            // Convert the existing mountain road into a real travel point.
+            window.__v14VillageEntities.forEach(e=>{
+              if(e.id==='gate'){
+                e.kind='travel';
+                e.targetZone='CopperHills';
+                e.name='Road to Copper Hills';
+                e.label='Travel';
+                e.msg='A rocky road leads toward Copper Hills.';
+              }
+            });
+
+            const COPPER_HILLS_ENTITIES=[
+              {id:'returnVillage',name:'Road to Village',kind:'travel',targetZone:'Village',label:'Travel',x:1.2,y:12.8,w:1.2,h:1.2,z:.65,color:'#5b21b6',icon:'🏡',solid:false,msg:'The road back to the village.'},
+              {id:'hillCopper1',name:'Copper rock',kind:'resource',label:'Mine copper',x:8.2,y:7.6,w:1.2,h:1.2,z:1.1,color:'#a16207',icon:'⛏️',solid:true,msg:'Copper deposit'},
+              {id:'hillCopper2',name:'Copper rock',kind:'resource',label:'Mine copper',x:11.3,y:8.8,w:1.2,h:1.2,z:1.1,color:'#a16207',icon:'⛏️',solid:true,msg:'Copper deposit'},
+              {id:'hillIron1',name:'Iron rock',kind:'resource',label:'Mine iron',x:13.7,y:11.4,w:1.25,h:1.25,z:1.25,color:'#475569',icon:'⛏️',solid:true,msg:'Iron deposit'},
+              {id:'hillIron2',name:'Iron rock',kind:'resource',label:'Mine iron',x:16.4,y:13.4,w:1.25,h:1.25,z:1.25,color:'#475569',icon:'⛏️',solid:true,msg:'Iron deposit'},
+              {id:'hillFurnace',name:'Crude furnace',kind:'door',label:'Use furnace',x:18.2,y:9.6,w:1.5,h:1.5,z:1.35,color:'#78350f',icon:'🔥',solid:true,msg:'A rough furnace for field smelting.'},
+              {id:'hillMiner',name:'Hill Miner',kind:'npc',label:'Talk',x:6.8,y:10.4,w:.9,h:.9,z:.9,color:'#71717a',icon:'👷',solid:false,msg:'Hill Miner says: More rocks than sense out here.'},
+              {id:'hillGoblin1',name:'Goblin',kind:'enemy',label:'Fight goblin',x:15.2,y:7.5,w:1,h:1,z:.65,color:'#166534',icon:'👺',solid:false,msg:'A goblin is guarding the hillside.'},
+              {id:'hillGoblin2',name:'Goblin',kind:'enemy',label:'Fight goblin',x:20.2,y:12.4,w:1,h:1,z:.65,color:'#166534',icon:'👺',solid:false,msg:'A goblin is skulking by the rocks.'},
+              {id:'hillSign',name:'Copper Hills Sign',kind:'npc',label:'Read sign',x:4.3,y:13.6,w:.8,h:.8,z:.6,color:'#92400e',icon:'🪧',solid:false,msg:'Sign: Copper Hills. Watch for goblins. Also rocks. Mostly rocks.'}
+            ];
+
+            function currentEntities(){return state.zone==='CopperHills'?COPPER_HILLS_ENTITIES:window.__v14VillageEntities}
+            function applyZoneEntities(){
+              const list=currentEntities().map(cloneEntity);
+              entities.splice(0,entities.length,...list);
+              const zoneChip=document.getElementById('zoneChip');
+              if(zoneChip)zoneChip.textContent=state.zone==='CopperHills'?'Copper Hills':'Village';
+              if(window.v12RefreshHeader)window.v12RefreshHeader();
+            }
+            window.v14ApplyZoneEntities=applyZoneEntities;
+
+            function saveZone(){try{localStorage.setItem(SAVE,JSON.stringify(state));renderHUD()}catch(e){}}
+
+            window.v14TravelPrompt=function(targetZone){
+              const pretty=targetZone==='CopperHills'?'Copper Hills':'Village';
+              ui.overlay.classList.add('show');
+              ui.modalTitle.textContent='🗺️ Travel';
+              ui.modalHint.textContent='Move to another area.';
+              ui.modalBody.innerHTML='<div class="zoneTravelBox"><span class="zoneBadge">Destination</span><h3>'+pretty+'</h3><p>Travel to '+pretty+'? Your inventory, skills, quests, bank, and gear stay with you.</p><div class="zoneTravelActions"><button class="primary" onclick="v14TravelTo(\\''+targetZone+'\\')">Travel</button><button class="btn" onclick="closePanel()">Stay here</button></div></div>';
+            };
+
+            window.v14TravelTo=function(targetZone){
+              state.zone=targetZone;
+              const spawn=targetZone==='CopperHills'?{x:2.6,y:12.8}:{x:21.4,y:13.2};
+              state.player={x:spawn.x,y:spawn.y};
+              closePanel();
+              applyZoneEntities();
+              addLog('Traveled to '+(targetZone==='CopperHills'?'Copper Hills':'Village')+'.');
+              saveZone();
+              if(typeof resize==='function')setTimeout(resize,80);
+            };
+
+            function v14Used(){return state.inv?Object.values(state.inv).reduce((a,b)=>a+(Number(b)||0),0):(state.bag||0)}
+            function v14Free(){return Math.max(0,(state.bagMax||20)-v14Used())}
+            function v14GainSkill(skill,xp){state.skills=state.skills||{};state.skills[skill]=(state.skills[skill]||0)+xp}
+            function v14AddItem(k,n){
+              if(k==='gold'){state.gold=(state.gold||0)+n;return true}
+              state.inv=state.inv||{};
+              if(v14Free()<n){addLog('Bag full. Bank or sell items first.');return false}
+              state.inv[k]=(state.inv[k]||0)+n;
+              return true;
+            }
+            function v14CombatStats(){
+              const gear={fists:{atk:1,def:0},rustySword:{atk:3,def:0},bronzeSword:{atk:6,def:0},woodShield:{atk:0,def:2},leatherCap:{atk:0,def:1},leatherChest:{atk:0,def:2},leatherBoots:{atk:0,def:1},ironShield:{atk:0,def:5}};
+              let atk=0,def=0;Object.values(state.eq||{}).forEach(id=>{if(id&&gear[id]){atk+=gear[id].atk;def+=gear[id].def}});
+              atk+=Math.floor(Math.max(1,(state.skills&&state.skills.combat)||0)/150);
+              return {atk:Math.max(1,atk),def};
+            }
+            function v14StartJob(opts){
+              const progress=document.getElementById('rpgProgress'),label=document.getElementById('rpgProgressLabel'),bar=document.getElementById('rpgProgressBar');
+              if(!progress||!label||!bar){return finishJob()}
+              label.textContent=opts.label;bar.style.width='0%';progress.classList.add('show');
+              const start=performance.now(),dur=(opts.sec||2)*1000;
+              function finishJob(){
+                progress&&progress.classList.remove('show');
+                Object.entries(opts.reward||{}).forEach(([k,v])=>v14AddItem(k,v));
+                if(opts.skill)v14GainSkill(opts.skill,opts.xp||0);
+                if(opts.damage)state.hp=Math.max(0,(state.hp||30)-opts.damage);
+                addLog(opts.done||opts.label+' complete.');
+                saveZone();
+              }
+              const tick=()=>{
+                const p=Math.min(1,(performance.now()-start)/dur);bar.style.width=(p*100)+'%';
+                if(p>=1)return finishJob();
+                requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            }
+
+            const prevInteract=interact;
+            interact=function(e){
+              if(e&&e.kind==='travel'&&e.targetZone){v14TravelPrompt(e.targetZone);return;}
+              if(e&&e.id==='hillCopper1'||e&&e.id==='hillCopper2'){
+                v14StartJob({label:'Mining copper...',sec:2.5,skill:'mining',xp:10,reward:{copperOre:1},done:'Mined 1 Copper Ore in Copper Hills. +10 Mining XP.'});return;
+              }
+              if(e&&e.id==='hillIron1'||e&&e.id==='hillIron2'){
+                v14StartJob({label:'Mining iron...',sec:3.4,skill:'mining',xp:18,reward:{ironOre:1},done:'Mined 1 Iron Ore in Copper Hills. +18 Mining XP.'});return;
+              }
+              if(e&&e.id==='hillGoblin1'||e&&e.id==='hillGoblin2'){
+                const cs=v14CombatStats();const damage=Math.max(1,6-Math.floor(cs.def*.55));
+                v14StartJob({label:'Fighting goblin...',sec:Math.max(1.4,3.4/(1+cs.atk*.07)),skill:'combat',xp:22,reward:{goblinEars:1,bones:1,gold:9},damage,done:'Defeated a Goblin. +22 Combat XP, +1 Goblin Ears, +1 Bones, +9 Gold.'});return;
+              }
+              if(e&&e.id==='hillFurnace'){openPanel('smithy');return;}
+              prevInteract(e);
+            };
+
+            const oldDraw=draw;
+            draw=function(){
+              if(state.zone!=='CopperHills')return oldDraw();
+              ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+              for(let y=0;y<world.h;y++)for(let x=0;x<world.w;x++){
+                let c=(x+y)%2?'#334155':'#475569';
+                if(x===2||y===13)c='#7c2d12';
+                if((x>7&&x<18&&y>6&&y<15)&&(x+y)%3===0)c='#64748b';
+                drawTile(x,y,c);
+              }
+              [...entities].sort((a,b)=>(a.x+a.y)-(b.x+b.y)).forEach(e=>{if(e.solid)drawBlock(e);else drawSprite(e)});
+              drawPlayer();
+              drawInteractionRings();
+            };
+
+            const oldRenderHUD=renderHUD;
+            renderHUD=function(logRender=true){
+              oldRenderHUD(logRender);
+              const zoneChip=document.getElementById('zoneChip');
+              if(zoneChip)zoneChip.textContent=state.zone==='CopperHills'?'Copper Hills':'Village';
+            };
+
+            applyZoneEntities();
+            addLog('V14 loaded: Copper Hills is now a travel zone. Use the mountain road to travel.');
+            saveZone();
+          }
+        `);
+      }catch(e){console.warn('V14 zone patch failed',e);}
+    }
+
+    v14Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>150)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
