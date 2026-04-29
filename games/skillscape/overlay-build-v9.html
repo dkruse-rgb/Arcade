@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape Overlay V9</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="overlay-build-v7.html?v=nearby-chooser-bank-controls-1" title="Skillscape Overlay V9"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+
+    function patch(){
+      let d,w;
+      try{ d=frame.contentDocument; w=frame.contentWindow; }catch(e){ return; }
+      if(!d||!w)return;
+
+      if(!d.getElementById('v9StylePatch')){
+        const style=d.createElement('style');
+        style.id='v9StylePatch';
+        style.textContent=`
+          .bankSummary{display:flex;gap:.4rem;flex-wrap:wrap;margin:.4rem 0 .8rem}
+          .bankControls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;margin-top:.55rem}
+          .bankControls button{justify-content:center;padding:.48rem .35rem;font-size:.82rem}
+          .bankCounts{display:flex;gap:.4rem;flex-wrap:wrap;margin:.35rem 0}
+          .bankCounts span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.2rem .48rem;font-size:.82rem;color:#cbd5e1}
+          .nearbyChoice{width:100%;text-align:left;margin:.42rem 0;display:flex!important;justify-content:space-between!important;gap:.7rem;white-space:normal!important;border-radius:16px!important}
+          .nearbyChoice small{color:#94a3b8;display:block;margin-top:.15rem}
+          .nearbyType{opacity:.85;font-size:.82rem;color:#cbd5e1}
+          @media(max-width:420px){.bankControls{grid-template-columns:repeat(2,minmax(0,1fr))}.bankControls button{font-size:.78rem}}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v9InteractionPatch){
+            window.__v9InteractionPatch=true;
+
+            function spotTypeLabel(sp){
+              if(sp.enter) return 'Enter building';
+              if(sp.travel) return 'Travel';
+              if(sp.kind==='bank') return 'Bank';
+              if(sp.kind==='shop') return 'Shop';
+              if(sp.kind==='inn') return 'Rest';
+              if(sp.npc) return 'Talk';
+              if(sp.action) return 'Action';
+              return 'Use';
+            }
+
+            window.nearbyHTML=function(){
+              window.__nearbyChoices=nearSpots();
+              return '<div class="bankSummary"><span class="chip">Choose what to use</span><span class="chip">Nearby '+window.__nearbyChoices.length+'</span></div>'+
+                window.__nearbyChoices.map((sp,i)=>{
+                  const label=(sp.icon?sp.icon+' ':'')+(sp.name||'Nearby thing');
+                  const type=spotTypeLabel(sp);
+                  const detail=sp.enemyId&&!alive(sp)?'Respawning in '+left(sp.enemyId)+'s':type;
+                  return '<button class="btn nearbyChoice" onclick="chooseNearby('+i+')"><span><b>'+label+'</b><small>'+detail+'</small></span><span class="nearbyType">›</span></button>';
+                }).join('');
+            };
+
+            window.chooseNearby=function(index){
+              const choices=window.__nearbyChoices||nearSpots();
+              const sp=choices[index];
+              closePanel();
+              if(sp) useSpot(sp);
+            };
+
+            const originalOpenPanel=openPanel;
+            openPanel=function(kind){
+              if(kind==='nearby'){
+                render(false);
+                el.overlay.classList.add('show');
+                el.modalTitle.textContent='👆 Choose Nearby';
+                el.modalHint.textContent='Several things are close. Pick exactly what you want to use.';
+                el.modalBody.innerHTML=nearbyHTML();
+                return;
+              }
+              originalOpenPanel(kind);
+            };
+
+            useNearby=function(){
+              const choices=nearSpots();
+              if(!choices.length){
+                msg='<b>Nothing nearby:</b> walk next to a door, NPC, resource, enemy, or counter.';
+                return render();
+              }
+              if(choices.length===1){
+                return useSpot(choices[0]);
+              }
+              return openPanel('nearby');
+            };
+
+            const useButton=document.getElementById('useBtn');
+            if(useButton) useButton.onclick=useNearby;
+
+            window.depositAmount=function(itemKey,amount){
+              if(s.zone!=='Bank'||!nearKind('bank')){
+                addLog('Stand by the bank counter.');
+                render();
+                return;
+              }
+              const qty=s.inv[itemKey]||0;
+              const move=Math.max(0,Math.min(amount,qty));
+              if(!move){
+                addLog('No '+nice(itemKey)+' in your bag.');
+                openPanel('bank');
+                return;
+              }
+              s.inv[itemKey]-=move;
+              s.bank[itemKey]=(s.bank[itemKey]||0)+move;
+              addLog('Deposited '+move+' '+nice(itemKey)+'.');
+              save();
+              openPanel('bank');
+            };
+
+            window.withdrawAmount=function(itemKey,amount){
+              if(s.zone!=='Bank'||!nearKind('bank')){
+                addLog('Stand by the bank counter.');
+                render();
+                return;
+              }
+              const qty=s.bank[itemKey]||0;
+              const room=free();
+              const move=Math.max(0,Math.min(amount,qty,room));
+              if(!move){
+                addLog(room<=0?'Your bag is full.':'No '+nice(itemKey)+' in the bank.');
+                openPanel('bank');
+                return;
+              }
+              s.bank[itemKey]-=move;
+              s.inv[itemKey]=(s.inv[itemKey]||0)+move;
+              addLog('Withdrew '+move+' '+nice(itemKey)+'.');
+              save();
+              openPanel('bank');
+            };
+
+            window.depositAllOf=function(itemKey){depositAmount(itemKey,s.inv[itemKey]||0)};
+            window.withdrawAllOf=function(itemKey){withdrawAmount(itemKey,s.bank[itemKey]||0)};
+
+            bankHTML=function(){
+              const summary='<div class="bankSummary"><span class="chip">Bag '+used()+'/'+s.bagLimit+'</span><span class="chip">Free '+free()+'</span></div><div class="nav"><button class="primary" onclick="depAll()">Deposit all bag</button><button class="btn" onclick="withAll()">Withdraw until full</button></div>';
+              const rows=ITEMS.map(k=>{
+                const carry=s.inv[k]||0;
+                const stored=s.bank[k]||0;
+                return '<div class="item"><b>'+nice(k)+'</b><div class="bankCounts"><span>Carry: '+carry+'</span><span>Bank: '+stored+'</span></div><div class="bankControls"><button class="btn" '+(carry<=0?'disabled':'')+' onclick="depositAmount(\\''+k+'\\',1)">Dep 1</button><button class="btn" '+(carry<=0?'disabled':'')+' onclick="depositAmount(\\''+k+'\\',5)">Dep 5</button><button class="btn" '+(carry<=0?'disabled':'')+' onclick="depositAllOf(\\''+k+'\\')">Dep All</button><button class="btn" '+(stored<=0||free()<=0?'disabled':'')+' onclick="withdrawAmount(\\''+k+'\\',1)">With 1</button><button class="btn" '+(stored<=0||free()<=0?'disabled':'')+' onclick="withdrawAmount(\\''+k+'\\',5)">With 5</button><button class="btn" '+(stored<=0||free()<=0?'disabled':'')+' onclick="withdrawAllOf(\\''+k+'\\')">With All</button></div></div>';
+              }).join('');
+              return summary+'<div class="mini">'+rows+'</div>';
+            };
+
+            inventoryHTML=function(){
+              return '<div class="bankSummary"><span class="chip">Bag '+used()+'/'+s.bagLimit+'</span><span class="chip">Free '+free()+'</span></div><div class="nav"><button class="primary" onclick="eat()">Eat fish</button><button class="btn" onclick="rest()">Rest</button></div><div class="mini">'+ITEMS.map(k=>'<div class="item"><b>'+nice(k)+'</b><p class="muted">Carrying: '+(s.inv[k]||0)+(s.zone==='Bank'&&nearKind('bank')?' • open Bank for deposit controls':'')+'</p></div>').join('')+'</div>';
+            };
+
+            render();
+          }
+        `);
+      }catch(e){
+        console.warn('V9 patch failed',e);
+      }
+    }
+
+    frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{
+        patch();
+        ticks++;
+        if(ticks>30) clearInterval(t);
+      },250);
+    });
+
+    setInterval(patch,800);
+  </script>
+</body>
+</html>
