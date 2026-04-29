@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V15</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v15Frame" src="skillscape-2-5d-v14.html?v=cook-all-fish-1" title="Skillscape 2.5D Prototype V15"></iframe>
+  <script>
+    const v15Frame=document.getElementById('v15Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>24)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        for(const f of [...doc.querySelectorAll('iframe')]){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v15Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v15CookAllStyle')){
+        const style=d.createElement('style');
+        style.id='v15CookAllStyle';
+        style.textContent=`
+          .cookControls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem;margin-top:.75rem}
+          .cookControls button{justify-content:center;min-height:42px}
+          .cookStats{display:flex;gap:.35rem;flex-wrap:wrap;margin:.45rem 0 .65rem}
+          .cookStats span{background:rgba(2,6,23,.42);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .5rem;color:#cbd5e1;font-size:.82rem}
+          @media(max-width:520px){.cookControls{grid-template-columns:1fr}.cookControls button{width:100%}}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v15CookAllFish){
+            window.__v15CookAllFish=true;
+            let v15Cooking=false;
+
+            function v15Used(){
+              if(state.inv)return Object.values(state.inv).reduce((a,b)=>a+(Number(b)||0),0);
+              return state.bag||0;
+            }
+            function v15Save(){
+              try{
+                state.bag=v15Used();
+                localStorage.setItem(SAVE,JSON.stringify(state));
+                renderHUD();
+                if(window.v12RefreshHeader)window.v12RefreshHeader();
+              }catch(e){}
+            }
+            function v15Raw(){return (state.inv&&state.inv.rawFish)||0}
+            function v15Cooked(){return (state.inv&&state.inv.cookedFish)||0}
+
+            window.v15CookFishAmount=function(amount){
+              if(v15Cooking){addLog('Already cooking.');return}
+              state.inv=state.inv||{};
+              state.skills=state.skills||{};
+              const raw=v15Raw();
+              const count=Math.max(0,Math.min(amount,raw));
+              if(!count){addLog('No raw fish to cook.');openPanel('smithy');return}
+
+              v15Cooking=true;
+              state.inv.rawFish-=count;
+              const progress=document.getElementById('rpgProgress');
+              const label=document.getElementById('rpgProgressLabel');
+              const bar=document.getElementById('rpgProgressBar');
+              const duration=Math.max(900, Math.min(9000, count*850));
+              const start=performance.now();
+              closePanel();
+              if(progress&&label&&bar){
+                label.textContent=count===1?'Cooking fish...':'Cooking '+count+' fish...';
+                bar.style.width='0%';
+                progress.classList.add('show');
+              }
+              function finish(){
+                if(progress)progress.classList.remove('show');
+                state.inv.cookedFish=(state.inv.cookedFish||0)+count;
+                state.skills.cooking=(state.skills.cooking||0)+(count*9);
+                v15Cooking=false;
+                addLog('Cooked '+count+' fish. +'+(count*9)+' Cooking XP.');
+                v15Save();
+              }
+              function tick(){
+                const p=Math.min(1,(performance.now()-start)/duration);
+                if(bar)bar.style.width=(p*100)+'%';
+                if(p>=1)return finish();
+                requestAnimationFrame(tick);
+              }
+              requestAnimationFrame(tick);
+            };
+
+            window.v15CookAllFish=function(){v15CookFishAmount(v15Raw())};
+
+            function v15SmithyHTML(){
+              const raw=v15Raw(), cooked=v15Cooked();
+              return '<div class="rpgItem"><b>Cook Fish</b><p class="rpgMuted">Uses Raw Fish to make Cooked Fish. Cooked fish can be eaten for HP or used for quests.</p><div class="cookStats"><span>Raw Fish: '+raw+'</span><span>Cooked Fish: '+cooked+'</span></div><div class="cookControls"><button class="primary" '+(raw<=0?'disabled':'')+' onclick="v15CookFishAmount(1)">Cook 1</button><button class="btn" '+(raw<=0?'disabled':'')+' onclick="v15CookFishAmount(5)">Cook 5</button><button class="btn" '+(raw<=0?'disabled':'')+' onclick="v15CookAllFish()">Cook All</button></div></div><div class="rpgItem"><b>Smelt Trade Goods</b><p class="rpgMuted">Uses 1 Copper Ore and 1 Logs for 7 gold and Smithing XP.</p><button class="primary" '+(!state.inv||((state.inv.copperOre||0)<1||(state.inv.logs||0)<1)?'disabled':'')+' onclick="smeltGoods()">Smelt</button></div>';
+            }
+
+            const prevOpenPanel=openPanel;
+            openPanel=function(kind){
+              if(kind==='smithy'){
+                ui.overlay.classList.add('show');
+                ui.modalTitle.textContent='⚒️ Smithy';
+                ui.modalHint.textContent='Cooking and crafting station.';
+                ui.modalBody.innerHTML=v15SmithyHTML();
+                return;
+              }
+              prevOpenPanel(kind);
+            };
+
+            addLog('V15 loaded: Smithy now has Cook 1, Cook 5, and Cook All.');
+          }
+        `);
+      }catch(e){console.warn('V15 cook all patch failed',e);}
+    }
+
+    v15Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>160)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
