@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V5</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v5Frame" src="skillscape-2-5d-v4.html?v=eight-angle-camera-1" title="Skillscape 2.5D Prototype V5"></iframe>
+  <script>
+    const v5Frame=document.getElementById('v5Frame');
+
+    function getGame(){
+      try{
+        const v4Doc=v5Frame.contentDocument;
+        const v3Frame=v4Doc && v4Doc.getElementById('outerFrame');
+        const v3Doc=v3Frame && v3Frame.contentDocument;
+        const gameFrame=v3Doc && v3Doc.getElementById('gameFrame');
+        return {doc:gameFrame && gameFrame.contentDocument, win:gameFrame && gameFrame.contentWindow};
+      }catch(e){return {doc:null,win:null};}
+    }
+
+    function patch(){
+      const {doc:d,win:w}=getGame();
+      if(!d||!w)return;
+
+      if(!d.getElementById('v5CameraStyle')){
+        const style=d.createElement('style');
+        style.id='v5CameraStyle';
+        style.textContent=`
+          .cameraControls{max-width:92%;}
+          .cameraControls button,.cameraControls span{font-weight:800!important}
+          .cameraControls .straightCam{border-color:rgba(56,189,248,.45)!important;box-shadow:0 0 0 2px rgba(56,189,248,.13)}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__eightAngleCameraV5){
+            window.__eightAngleCameraV5=true;
+
+            const CAMERA_LABELS_8=['NE','E','SE','S','SW','W','NW','N'];
+            window.cameraIndex=state.cameraIndex8 ?? state.cameraIndex ?? 0;
+            if(window.cameraIndex>7) window.cameraIndex=0;
+
+            function cameraBasis(){
+              // screen axes converted to world axes. upVec is what pressing up means in world space.
+              const label=CAMERA_LABELS_8[window.cameraIndex];
+              const defs={
+                N:{right:[1,0],up:[0,-1],mode:'straight'},
+                NE:{right:[1,-1],up:[-1,-1],mode:'iso'},
+                E:{right:[0,1],up:[1,0],mode:'straight'},
+                SE:{right:[1,1],up:[1,-1],mode:'iso'},
+                S:{right:[-1,0],up:[0,1],mode:'straight'},
+                SW:{right:[-1,1],up:[1,1],mode:'iso'},
+                W:{right:[0,-1],up:[-1,0],mode:'straight'},
+                NW:{right:[-1,-1],up:[-1,1],mode:'iso'}
+              };
+              const b=defs[label];
+              const norm=v=>{const m=Math.hypot(v[0],v[1])||1;return [v[0]/m,v[1]/m]};
+              return {label,mode:b.mode,right:norm(b.right),up:norm(b.up)};
+            }
+
+            function saveCamera8(){
+              state.cameraIndex8=window.cameraIndex;
+              state.cameraIndex=window.cameraIndex;
+              localStorage.setItem(SAVE,JSON.stringify(state));
+            }
+
+            function refreshCameraLabel8(){
+              const label=CAMERA_LABELS_8[window.cameraIndex];
+              const camLabel=document.getElementById('camLabel');
+              if(camLabel){
+                camLabel.textContent='Camera '+label;
+                camLabel.classList.toggle('straightCam',['N','E','S','W'].includes(label));
+              }
+            }
+
+            window.rotateCamera=function(step){
+              window.cameraIndex=(window.cameraIndex+step+8)%8;
+              saveCamera8();
+              refreshCameraLabel8();
+              addLog('Camera rotated to '+CAMERA_LABELS_8[window.cameraIndex]+'.');
+            };
+
+            window.resetCamera=function(){
+              window.cameraIndex=0;
+              saveCamera8();
+              refreshCameraLabel8();
+              addLog('Camera reset to NE.');
+            };
+
+            window.setCamera=function(label){
+              const idx=CAMERA_LABELS_8.indexOf(label);
+              if(idx>=0){
+                window.cameraIndex=idx;
+                saveCamera8();
+                refreshCameraLabel8();
+                addLog('Camera set to '+label+'.');
+              }
+            };
+
+            const wrap=document.getElementById('canvasWrap');
+            if(wrap && !document.getElementById('camDirectButtons')){
+              const direct=document.createElement('div');
+              direct.id='camDirectButtons';
+              direct.className='cameraControls';
+              direct.style.top='5.75rem';
+              direct.innerHTML='<button onclick="setCamera(\\'N\\')">N</button><button onclick="setCamera(\\'E\\')">E</button><button onclick="setCamera(\\'S\\')">S</button><button onclick="setCamera(\\'W\\')">W</button>';
+              wrap.appendChild(direct);
+            }
+
+            screen=function(x,y,z=0){
+              const basis=cameraBasis();
+              const lx=x-state.player.x;
+              const ly=y-state.player.y;
+              const sx=lx*basis.right[0]+ly*basis.right[1];
+              const sy=lx*basis.up[0]+ly*basis.up[1];
+              let px,py;
+              if(basis.mode==='straight'){
+                px=sx*48;
+                py=-sy*42-z*30;
+              }else{
+                px=sx*tileW*.52;
+                py=-sy*tileH*.72-z*28;
+              }
+              return {x:px+canvas.clientWidth/2,y:py+canvas.clientHeight/2+40};
+            };
+
+            update=function(dt){
+              if(!canMove(state.player.x,state.player.y)){
+                if(window.unstickPlayer) window.unstickPlayer('Unstuck: collision trap detected.');
+                return;
+              }
+              let dx=0,dy=0;
+              if(keys.ArrowUp||keys.w)dy-=1;
+              if(keys.ArrowDown||keys.s)dy+=1;
+              if(keys.ArrowLeft||keys.a)dx-=1;
+              if(keys.ArrowRight||keys.d)dx+=1;
+              if(dx||dy){
+                const mag=Math.hypot(dx,dy)||1;
+                dx/=mag;dy/=mag;
+                const basis=cameraBasis();
+                // screen-relative controls: up on the D-pad means forward/up on screen.
+                const wx=basis.right[0]*dx + basis.up[0]*(-dy);
+                const wy=basis.right[1]*dx + basis.up[1]*(-dy);
+                const speed=3.1*dt;
+                const nx=state.player.x+wx*speed;
+                const ny=state.player.y+wy*speed;
+                if(canMove(nx,state.player.y))state.player.x=nx;
+                if(canMove(state.player.x,ny))state.player.y=ny;
+                renderHUD(false);
+              }
+            };
+
+            window.tapMove=function(dir){
+              const map={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'};
+              const k=map[dir];
+              if(!k)return;
+              keys[k]=true;
+              for(let i=0;i<12;i++) update(1/60);
+              keys[k]=false;
+              renderHUD(false);
+            };
+
+            document.querySelectorAll('[data-dir]').forEach(btn=>{
+              if(btn.__camera8Bound)return;
+              btn.__camera8Bound=true;
+              const dir=btn.dataset.dir;
+              const map={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'};
+              const k=map[dir];
+              btn.addEventListener('touchstart',e=>{e.preventDefault();keys[k]=true;},{passive:false});
+              btn.addEventListener('touchend',e=>{e.preventDefault();keys[k]=false;tapMove(dir);},{passive:false});
+              btn.addEventListener('click',e=>{e.preventDefault();tapMove(dir);});
+            });
+
+            refreshCameraLabel8();
+            addLog('V5 camera loaded: diagonals plus straight-on N/E/S/W views.');
+          }
+        `);
+      }catch(e){console.warn('V5 camera patch failed',e);}
+    }
+
+    v5Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{
+        patch();
+        ticks++;
+        if(ticks>60)clearInterval(t);
+      },250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
