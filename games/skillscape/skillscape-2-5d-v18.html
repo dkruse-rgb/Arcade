@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V18</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v18Frame" src="skillscape-2-5d-v17.html?v=directional-building-renderer-1" title="Skillscape 2.5D Prototype V18"></iframe>
+  <script>
+    const v18Frame=document.getElementById('v18Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>30)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        for(const f of [...doc.querySelectorAll('iframe')]){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v18Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      try{
+        w.eval(`
+          if(!window.__v18DirectionalBuildings){
+            window.__v18DirectionalBuildings=true;
+
+            function v18Poly(points,fill,stroke='rgba(255,255,255,.13)',lw=1){
+              if(!points||points.length<3)return;
+              ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
+              for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
+              ctx.closePath();ctx.fillStyle=fill;ctx.fill();
+              if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();}
+            }
+            function v18Ellipse(cx,cy,rx,ry,fill,stroke=null,lw=1){
+              ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();
+              if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();}
+            }
+            function v18RoundRect(x,y,w,h,r,fill,stroke=null){
+              ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();
+              if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}
+            }
+            function v18Mix(hex,amt){
+              const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+              const target=amt>=0?255:0, a=Math.abs(amt);
+              const nr=Math.round(r+(target-r)*a),ng=Math.round(g+(target-g)*a),nb=Math.round(b+(target-b)*a);
+              return '#'+((1<<24)+(nr<<16)+(ng<<8)+nb).toString(16).slice(1);
+            }
+            function v18Corners(e,z=0,pad=0){
+              const x=e.x-pad,y=e.y-pad,w=(e.w||1)+pad*2,h=(e.h||1)+pad*2;
+              return {
+                nw:screen(x,y,z), ne:screen(x+w,y,z),
+                se:screen(x+w,y+h,z), sw:screen(x,y+h,z),
+                c:screen(x+w/2,y+h/2,z)
+              };
+            }
+            function v18Avg(points){
+              return points.reduce((a,p)=>({x:a.x+p.x/points.length,y:a.y+p.y/points.length}),{x:0,y:0});
+            }
+            function v18Lerp(a,b,t){return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}}
+            function v18Badge(icon,x,y,size=34){
+              v18RoundRect(x-size/2,y-size/2,size,size,10,'rgba(2,6,23,.8)','rgba(255,255,255,.14)');
+              ctx.font=Math.floor(size*.58)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(icon,x,y+1);
+            }
+            function v18FootprintDepth(e){
+              const c=v18Corners(e,0);
+              return Math.max(c.nw.y,c.ne.y,c.se.y,c.sw.y);
+            }
+            function v18ObjectDepth(e){
+              if(!e)return 0;
+              if(e.__player)return screen(state.player.x,state.player.y,0).y+8;
+              if(e.kind==='door'||e.solid)return v18FootprintDepth(e);
+              return screen(e.x+(e.w||0)/2,e.y+(e.h||0)/2,0).y+10;
+            }
+            function v18BuildingPalette(e){
+              let roof='#c2410c',wall='#d6b58a',icon=e.icon||'🏠';
+              if(e.id==='bank'){roof='#2563eb';wall='#dbeafe';icon='🏦'}
+              if(e.id==='shop'){roof='#d97706';wall='#fde68a';icon='🏪'}
+              if(e.id==='smithy'||e.id==='hillFurnace'){roof='#475569';wall='#94a3b8';icon=e.id==='hillFurnace'?'🔥':'⚒️'}
+              if(e.id==='inn'){roof='#c2410c';wall='#fed7aa';icon='🛏️'}
+              return {roof,wall,icon};
+            }
+
+            function v18DrawBuilding(e){
+              const pal=v18BuildingPalette(e);
+              const h=(e.z||1.55)*.78;
+              const b=v18Corners(e,0,0);
+              const t=v18Corners(e,h,0);
+              const roof=v18Corners(e,h+.18,.16);
+              const baseCenter=b.c;
+
+              v18Ellipse(baseCenter.x,baseCenter.y+10,Math.max(24,(e.w+e.h)*15),Math.max(8,(e.w+e.h)*5.5),'rgba(0,0,0,.28)');
+
+              const faces=[
+                {name:'north',edge:[b.nw,b.ne],top:[t.nw,t.ne],shade:.08},
+                {name:'east',edge:[b.ne,b.se],top:[t.ne,t.se],shade:-.24},
+                {name:'south',edge:[b.se,b.sw],top:[t.se,t.sw],shade:-.12},
+                {name:'west',edge:[b.sw,b.nw],top:[t.sw,t.nw],shade:-.04}
+              ].map(f=>({
+                ...f,
+                pts:[f.edge[0],f.edge[1],f.top[1],f.top[0]],
+                closeness:(f.edge[0].y+f.edge[1].y)/2
+              }));
+
+              // Only draw the two camera-facing walls. Drawing all four was what caused the twisted/slab look.
+              const visible=faces.sort((a,b)=>b.closeness-a.closeness).slice(0,2).sort((a,b)=>a.closeness-b.closeness);
+              visible.forEach(f=>v18Poly(f.pts,v18Mix(pal.wall,f.shade),'rgba(255,255,255,.11)',1));
+
+              // Simple roof cap: one clean projected footprint. No cross triangles, no extra slabs.
+              v18Poly([roof.nw,roof.ne,roof.se,roof.sw],pal.roof,'rgba(255,255,255,.2)',1.5);
+              const roofCenter=roof.c;
+              ctx.strokeStyle='rgba(0,0,0,.12)';ctx.lineWidth=1;
+              ctx.beginPath();ctx.moveTo(roof.nw.x,roof.nw.y);ctx.lineTo(roof.se.x,roof.se.y);ctx.moveTo(roof.ne.x,roof.ne.y);ctx.lineTo(roof.sw.x,roof.sw.y);ctx.stroke();
+
+              // Door goes on the most front-facing wall and is skewed with that wall.
+              const front=faces.sort((a,b)=>b.closeness-a.closeness)[0];
+              const dl=v18Lerp(front.edge[0],front.edge[1],.39);
+              const dr=v18Lerp(front.edge[0],front.edge[1],.61);
+              const tl=v18Lerp(dl,v18Lerp(front.top[0],front.top[1],.39),.55);
+              const tr=v18Lerp(dr,v18Lerp(front.top[0],front.top[1],.61),.55);
+              v18Poly([dl,dr,tr,tl],'#3f1f12','rgba(255,255,255,.16)',1);
+              const knob=v18Lerp(dl,dr,.72);
+              ctx.fillStyle='rgba(251,191,36,.9)';ctx.beginPath();ctx.arc(knob.x,knob.y-8,2.2,0,Math.PI*2);ctx.fill();
+
+              v18Badge(pal.icon,roofCenter.x,roofCenter.y-10,34);
+            }
+
+            const v18PrevDrawBlock=drawBlock;
+            window.drawBlock=function(e){
+              if(e&&e.kind==='door')return v18DrawBuilding(e);
+              return v18PrevDrawBlock(e);
+            };
+
+            // Draw order now uses projected screen depth instead of fixed x+y. This fixes E/W overlap.
+            const v18PrevDraw=draw;
+            window.draw=function(){
+              ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+              const zone=state.zone||'Village';
+              for(let y=0;y<world.h;y++)for(let x=0;x<world.w;x++){
+                if(typeof tileType==='function')drawTile(x,y,tileType(x,y));
+                else drawTile(x,y,(zone==='CopperHills')?'rock':'grassA');
+              }
+
+              const drawables=[...entities.map(e=>({type:'entity',e,depth:v18ObjectDepth(e)})),{type:'player',depth:v18ObjectDepth({__player:true})}];
+              drawables.sort((a,b)=>a.depth-b.depth);
+              drawables.forEach(obj=>{
+                if(obj.type==='player')drawPlayer();
+                else if(obj.e.id==='pond'||obj.e.solid)drawBlock(obj.e);
+                else drawSprite(obj.e);
+              });
+              drawInteractionRings();
+            };
+
+            addLog('V18 loaded: directional building renderer and camera-depth sorting active.');
+          }
+        `);
+      }catch(e){console.warn('V18 directional building patch failed',e);}
+    }
+
+    v18Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>200)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
