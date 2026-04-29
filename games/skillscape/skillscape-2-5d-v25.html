@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D V25</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="skillscape-2-5d-v24.html?v=no-select-controls-1" title="Skillscape 2.5D V25"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+    function patch(){
+      let d,w;
+      try{d=frame.contentDocument;w=frame.contentWindow;if(!d||!w)return;}catch(e){return;}
+      if(d.getElementById('v25NoSelectPatch'))return;
+      const style=d.createElement('style');
+      style.id='v25NoSelectPatch';
+      style.textContent=`
+        html,body,.app,.tray,.dpad,.dpad *,.actions,.actions *,button,#use,#game,.wrap,.cam,.cam *{
+          -webkit-user-select:none!important;
+          user-select:none!important;
+          -webkit-touch-callout:none!important;
+          -webkit-tap-highlight-color:transparent!important;
+        }
+        button{touch-action:manipulation!important;outline:none!important}
+        .dpad button,#use{touch-action:none!important}
+        ::selection{background:transparent!important;color:inherit!important}
+      `;
+      d.head.appendChild(style);
+      const stop=e=>{ if(e.target.closest && (e.target.closest('.dpad')||e.target.closest('#use')||e.target.closest('button'))){ e.preventDefault(); return false; } };
+      ['selectstart','contextmenu','dragstart'].forEach(type=>d.addEventListener(type,stop,{capture:true}));
+      d.querySelectorAll('.dpad button,#use,.actions button,.cam button,button').forEach(btn=>{
+        btn.setAttribute('unselectable','on');
+        btn.addEventListener('touchstart',e=>{ if(btn.closest('.dpad')||btn.id==='use') e.preventDefault(); },{passive:false});
+      });
+      try{ if(w.log) w.log('V25 loaded: mobile button highlighting disabled.'); }catch(e){}
+    }
+    frame.addEventListener('load',()=>{patch();let n=0;const t=setInterval(()=>{patch();if(++n>20)clearInterval(t)},250)});
+  </script>
+</body>
+</html>
