@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V19</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v19Frame" src="skillscape-2-5d-v18.html?v=render-padding-1" title="Skillscape 2.5D Prototype V19"></iframe>
+  <script>
+    const v19Frame=document.getElementById('v19Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>32)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        for(const f of [...doc.querySelectorAll('iframe')]){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v19Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      try{
+        w.eval(`
+          if(!window.__v19GroundPadding){
+            window.__v19GroundPadding=true;
+
+            const V19_PAD=9;
+
+            function v19InWorld(x,y){
+              return x>=0 && y>=0 && x<world.w && y<world.h;
+            }
+
+            function v19DecorTile(x,y){
+              const zone=state.zone||'Village';
+
+              if(zone==='CopperHills'){
+                if(x===2 || y===13) return 'dirt';
+                if((x+y)%3===0) return 'rockLight';
+                return 'rock';
+              }
+
+              // Keep the main village paths visually continuing into the overscan area.
+              if(x===11 || x===12 || y===7) return 'dirt';
+
+              // Let the water edge continue visually so the pond/shore does not abruptly stop.
+              if(x>19 && y>5 && y<13) return 'water';
+
+              // Distant grass outside the playable map. Still decorative; not walkable.
+              return (x+y)%2 ? 'grassB' : 'grassA';
+            }
+
+            function v19TileType(x,y){
+              if(v19InWorld(x,y)){
+                try{
+                  if(typeof tileType==='function') return tileType(x,y);
+                }catch(e){}
+                const zone=state.zone||'Village';
+                if(zone==='CopperHills') return (x+y)%2?'rock':'rockLight';
+                if(x===11 || x===12 || y===7) return 'dirt';
+                if(x>19 && y>6 && y<12) return 'water';
+                return (x+y)%2?'grassB':'grassA';
+              }
+              return v19DecorTile(x,y);
+            }
+
+            function v19DepthForEntity(e){
+              if(!e) return 0;
+              const p=screen(e.x+(e.w||1)/2,e.y+(e.h||1)/2,0);
+              let bonus=8;
+              if(e.kind==='door'||e.solid) bonus=28;
+              return p.y+bonus;
+            }
+
+            function v19PlayerDepth(){
+              return screen(state.player.x,state.player.y,0).y+14;
+            }
+
+            function v19DrawEdgeFade(){
+              const w=canvas.clientWidth,h=canvas.clientHeight;
+              const g=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*.25,w/2,h/2,Math.max(w,h)*.62);
+              g.addColorStop(0,'rgba(2,6,23,0)');
+              g.addColorStop(.72,'rgba(2,6,23,0)');
+              g.addColorStop(1,'rgba(2,6,23,.34)');
+              ctx.fillStyle=g;
+              ctx.fillRect(0,0,w,h);
+            }
+
+            window.draw=function(){
+              ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+
+              // Draw a larger decorative ground plane than the playable world.
+              // This prevents N/E/S/W camera views from exposing empty space at the map edge.
+              const minX=-V19_PAD, minY=-V19_PAD;
+              const maxX=world.w+V19_PAD, maxY=world.h+V19_PAD;
+              for(let y=minY;y<maxY;y++){
+                for(let x=minX;x<maxX;x++){
+                  drawTile(x,y,v19TileType(x,y));
+                }
+              }
+
+              const drawables=[...entities.map(e=>({type:'entity',e,depth:v19DepthForEntity(e)})),{type:'player',depth:v19PlayerDepth()}];
+              drawables.sort((a,b)=>a.depth-b.depth);
+              drawables.forEach(obj=>{
+                if(obj.type==='player') drawPlayer();
+                else if(obj.e.id==='pond'||obj.e.solid) drawBlock(obj.e);
+                else drawSprite(obj.e);
+              });
+              drawInteractionRings();
+              v19DrawEdgeFade();
+            };
+
+            addLog('V19 loaded: render-only ground padding added around the map to prevent edge gaps.');
+          }
+        `);
+      }catch(e){console.warn('V19 ground padding patch failed',e);}
+    }
+
+    v19Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>220)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
