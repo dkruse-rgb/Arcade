@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V8</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v8Frame" src="skillscape-2-5d-v7.html?v=dpad-safe-zone-1" title="Skillscape 2.5D Prototype V8"></iframe>
+  <script>
+    const v8Frame=document.getElementById('v8Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>12)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        const frames=[...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v8Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v8SafeDpadStyle')){
+        const style=d.createElement('style');
+        style.id='v8SafeDpadStyle';
+        style.textContent=`
+          html,body{overflow-x:hidden!important;overflow-y:auto!important;max-width:100%!important}
+          .wrap{padding-bottom:calc(1rem + env(safe-area-inset-bottom))!important}
+          .canvasWrap{
+            height:min(62vh,620px)!important;
+            min-height:390px!important;
+            max-height:calc(100svh - 245px)!important;
+          }
+          .controls{
+            left:.45rem!important;
+            right:.45rem!important;
+            bottom:calc(1.15rem + env(safe-area-inset-bottom))!important;
+            align-items:flex-end!important;
+            z-index:30!important;
+            pointer-events:none!important;
+          }
+          .pad{
+            pointer-events:auto!important;
+            grid-template-columns:repeat(3,43px)!important;
+            gap:.32rem!important;
+            transform:translateY(-.35rem)!important;
+          }
+          .pad button{
+            min-height:41px!important;
+            border-radius:14px!important;
+            background:rgba(15,23,42,.72)!important;
+            border:1px solid rgba(255,255,255,.22)!important;
+            backdrop-filter:blur(4px)!important;
+          }
+          .actionCluster{
+            pointer-events:auto!important;
+            position:absolute!important;
+            right:0!important;
+            bottom:calc(1.15rem + env(safe-area-inset-bottom))!important;
+            display:grid!important;
+            grid-template-columns:1fr 1fr!important;
+            gap:.32rem!important;
+            width:min(58vw,270px)!important;
+            transform:translateY(-.35rem)!important;
+          }
+          .actionCluster button{
+            width:100%!important;
+            min-height:39px!important;
+            padding:.48rem .38rem!important;
+            font-size:.78rem!important;
+            border-radius:999px!important;
+            background:rgba(15,23,42,.66)!important;
+            backdrop-filter:blur(4px)!important;
+          }
+          #useBtn{
+            grid-column:1 / -1!important;
+            min-height:46px!important;
+            font-size:.94rem!important;
+            font-weight:900!important;
+            background:linear-gradient(90deg,#38bdf8,#22c55e)!important;
+            color:#02111f!important;
+          }
+          .rpgProgress{bottom:calc(6.4rem + env(safe-area-inset-bottom))!important}
+          .hudTop{z-index:25!important}
+          .v7CameraDock{z-index:28!important}
+          @media(max-width:520px){
+            .canvasWrap{
+              height:58vh!important;
+              min-height:370px!important;
+              max-height:calc(100svh - 260px)!important;
+            }
+            .controls{
+              bottom:calc(1.35rem + env(safe-area-inset-bottom))!important;
+            }
+            .pad{
+              grid-template-columns:repeat(3,40px)!important;
+              gap:.28rem!important;
+              transform:translateY(-.55rem)!important;
+            }
+            .pad button{min-height:38px!important}
+            .actionCluster{
+              width:min(56vw,235px)!important;
+              bottom:calc(1.35rem + env(safe-area-inset-bottom))!important;
+              transform:translateY(-.55rem)!important;
+            }
+            .actionCluster button{font-size:.75rem!important;min-height:36px!important;padding:.42rem .3rem!important}
+            #useBtn{min-height:43px!important;font-size:.9rem!important}
+            .rpgProgress{bottom:calc(6.7rem + env(safe-area-inset-bottom))!important}
+          }
+          @media(max-width:390px){
+            .canvasWrap{
+              height:56vh!important;
+              min-height:350px!important;
+              max-height:calc(100svh - 270px)!important;
+            }
+            .pad{grid-template-columns:repeat(3,37px)!important}
+            .pad button{min-height:35px!important}
+            .actionCluster{width:54vw!important}
+            .actionCluster button{font-size:.7rem!important;min-height:34px!important}
+            #useBtn{font-size:.84rem!important;min-height:40px!important}
+          }
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v8DpadSafeZone){
+            window.__v8DpadSafeZone=true;
+            const goal=document.querySelector('.smallNote');
+            if(goal)goal.style.display='none';
+            addLog('V8 loaded: D-pad lifted into a safe mobile zone.');
+            if(typeof resize==='function')setTimeout(resize,100);
+          }
+        `);
+      }catch(e){console.warn('V8 D-pad safe zone patch failed',e);}
+    }
+
+    v8Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>80)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
