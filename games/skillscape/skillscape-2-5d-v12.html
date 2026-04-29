@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V12</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v12Frame" src="skillscape-2-5d-v11.html?v=compact-mobile-header-1" title="Skillscape 2.5D Prototype V12"></iframe>
+  <script>
+    const v12Frame=document.getElementById('v12Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>18)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        const frames=[...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v12Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v12CompactHeaderStyle')){
+        const style=d.createElement('style');
+        style.id='v12CompactHeaderStyle';
+        style.textContent=`
+          #v12CompactHero{display:none}
+          @media(max-width:760px){
+            .wrap{padding:.38rem!important}
+            .hero{
+              margin-bottom:.45rem!important;
+              padding:.58rem .68rem!important;
+              border-radius:18px!important;
+            }
+            .hero > .row{display:none!important}
+            #v12CompactHero{display:block!important}
+            .v12TopLine{display:flex;align-items:center;justify-content:space-between;gap:.65rem}
+            .v12Title{font-size:clamp(1.25rem,6.2vw,1.8rem);font-weight:950;letter-spacing:-.045em;line-height:1;white-space:nowrap}
+            .v12MenuBtn{border:1px solid rgba(255,255,255,.18);background:rgba(15,23,42,.7);color:#e5e7eb;border-radius:999px;padding:.42rem .62rem;font:inherit;font-size:.82rem;font-weight:900;white-space:nowrap}
+            .v12Stats{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.48rem;color:#dbeafe;font-size:.82rem;font-weight:850;line-height:1.2}
+            .v12Stats span{background:rgba(2,6,23,.42);border:1px solid rgba(255,255,255,.11);border-radius:999px;padding:.24rem .48rem;white-space:nowrap}
+            .canvasPanel{padding:.55rem!important}
+            .canvasWrap{
+              height:min(62vh,650px)!important;
+              min-height:385px!important;
+              max-height:calc(100svh - 205px)!important;
+            }
+            .hudTop{top:.4rem!important;left:.4rem!important;right:.4rem!important}
+            .v7CameraDock{top:.55rem!important;right:.55rem!important}
+            .modal{max-height:82vh!important}
+          }
+          @media(max-width:520px){
+            .hero{padding:.5rem .58rem!important}
+            .v12Stats{font-size:.76rem;gap:.28rem}
+            .v12Stats span{padding:.21rem .4rem}
+            .v12MenuBtn{font-size:.78rem;padding:.36rem .52rem}
+            .canvasWrap{
+              height:59vh!important;
+              min-height:360px!important;
+              max-height:calc(100svh - 215px)!important;
+            }
+          }
+          @media(max-width:390px){
+            .v12Title{font-size:1.22rem}
+            .v12Stats{font-size:.7rem}
+            .v12Stats span{padding:.18rem .34rem}
+            .canvasWrap{
+              height:56vh!important;
+              min-height:335px!important;
+              max-height:calc(100svh - 222px)!important;
+            }
+          }
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v12CompactHeader){
+            window.__v12CompactHeader=true;
+            const hero=document.querySelector('.hero');
+            if(hero&&!document.getElementById('v12CompactHero')){
+              const compact=document.createElement('div');
+              compact.id='v12CompactHero';
+              compact.innerHTML='<div class="v12TopLine"><div class="v12Title">Skillscape 2.5D</div><button class="v12MenuBtn" id="v12MenuBtn">☰ Menu</button></div><div class="v12Stats" id="v12Stats"><span>Gold --</span><span>HP --</span><span>Bag --</span><span>Nearby --</span></div>';
+              hero.prepend(compact);
+            }
+
+            function v12Used(){
+              try{
+                if(state.inv){return Object.values(state.inv).reduce((a,b)=>a+(Number(b)||0),0)}
+                return state.bag||0;
+              }catch(e){return state.bag||0}
+            }
+
+            window.v12RefreshHeader=function(){
+              const box=document.getElementById('v12Stats');
+              if(!box)return;
+              let near=0;
+              try{near=nearby().length}catch(e){near=state.nearby||0}
+              const bag=v12Used();
+              const bagMax=state.bagMax||20;
+              const hp=(state.hp??30)+'/'+(state.maxHp??30);
+              const gold=state.gold??0;
+              box.innerHTML='<span>💰 '+gold+'g</span><span>❤️ '+hp+'</span><span>🎒 '+bag+'/'+bagMax+'</span><span>⭐ '+near+'</span>';
+            };
+
+            window.v12OpenMenu=function(){
+              ui.overlay.classList.add('show');
+              ui.modalTitle.textContent='☰ Menu';
+              ui.modalHint.textContent='Navigation and save controls.';
+              ui.modalBody.innerHTML='<div class="rpgGrid"><a class="btn" target="_top" href="../../index.html">← Arcade</a><a class="btn" target="_top" href="overlay-build-v11.html">2D RPG Build</a><button class="primary" onclick="save();v12RefreshHeader();addLog(\\'Game saved from menu.\\');closePanel()">Save</button><button class="btn" onclick="reset()">Reset</button></div>';
+            };
+
+            const menuBtn=document.getElementById('v12MenuBtn');
+            if(menuBtn)menuBtn.onclick=window.v12OpenMenu;
+
+            const oldRenderHUD=renderHUD;
+            renderHUD=function(logRender=true){
+              oldRenderHUD(logRender);
+              v12RefreshHeader();
+            };
+
+            v12RefreshHeader();
+            addLog('V12 loaded: compact mobile header active.');
+            if(typeof resize==='function')setTimeout(resize,100);
+          }else{
+            if(window.v12RefreshHeader)window.v12RefreshHeader();
+          }
+        `);
+      }catch(e){console.warn('V12 compact header patch failed',e);}
+    }
+
+    v12Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>110)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
