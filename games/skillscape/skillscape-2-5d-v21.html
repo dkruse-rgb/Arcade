@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V21</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v21Frame" src="skillscape-2-5d-v20.html?v=layout-polish-v21" title="Skillscape 2.5D Prototype V21"></iframe>
+  <script>
+    const v21Frame=document.getElementById('v21Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>32)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        for(const f of [...doc.querySelectorAll('iframe')]){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v21Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const w=hit.win;
+
+      try{
+        w.eval(`
+          if(!window.__v21LayoutPolish){
+            window.__v21LayoutPolish=true;
+
+            function v21LooksLikeBlocks(arr){
+              return Array.isArray(arr) && arr.length>4 && arr.length<2500 && arr.filter(o=>o && typeof o.x==='number' && typeof o.y==='number').length > Math.max(3,arr.length*0.55);
+            }
+            function v21FindBlocks(){
+              const direct=['blocks','worldBlocks','mapBlocks','zoneBlocks','entities','objects','tiles','zoneTiles','map'];
+              for(const key of direct){ if(v21LooksLikeBlocks(window[key])) return window[key]; }
+              for(const key of Object.keys(window)){
+                let v;
+                try{ v=window[key]; }catch(e){ continue; }
+                if(v21LooksLikeBlocks(v)) return v;
+                if(v && typeof v==='object'){
+                  for(const child of ['blocks','entities','objects','tiles','mapBlocks','zoneBlocks']){
+                    try{ if(v21LooksLikeBlocks(v[child])) return v[child]; }catch(e){}
+                  }
+                }
+              }
+              return [];
+            }
+            function v21Norm(s){ return String(s||'').toLowerCase(); }
+            function v21Id(e){ return v21Norm([e.id,e.name,e.label,e.title,e.icon,e.targetZone,e.kind].filter(Boolean).join(' ')); }
+            function v21Type(e){
+              const s=v21Id(e);
+              if(/\bbank\b/.test(s)) return 'bank';
+              if(/\bshop\b/.test(s)) return 'shop';
+              if(/\binn\b/.test(s)) return 'inn';
+              if(/smithy|hillfurnace|furnace/.test(s)) return 'smithy';
+              if(/pond|fish/.test(s) && !/raw fish|cooked fish/.test(s)) return 'pond';
+              if(/travel|portal|exit|copper hills|village/.test(s) && /kind/.test('kind') ? false : false){}
+              if(e.kind==='travel' || /copper hills|travel/.test(s)) return 'travel';
+              if(/forester/.test(s)) return 'forester';
+              if(/miner/.test(s)) return 'miner';
+              if(/villager|guide|npc|finn|mags/.test(s)) return 'npc';
+              if(/tree/.test(s)) return 'tree';
+              if(/copper rock/.test(s)) return 'copper';
+              if(/iron rock/.test(s)) return 'iron';
+              return '';
+            }
+            function v21SetPos(e,x,y,w,h,z){
+              e.x=x; e.y=y;
+              if(typeof w==='number') e.w=w;
+              if(typeof h==='number') e.h=h;
+              if(typeof z==='number') e.z=z;
+            }
+            function v21Unique(list,types){
+              const out={};
+              for(const t of types) out[t]=[];
+              for(const e of list){
+                const t=v21Type(e);
+                if(out[t]) out[t].push(e);
+              }
+              return out;
+            }
+            function v21ApplyLayout(){
+              const blocks=v21FindBlocks();
+              if(!blocks || !blocks.length) return;
+              if(window.__v21LastBlocks!==blocks){
+                window.__v21LastBlocks=blocks;
+                window.__v21LayoutTick=0;
+              }
+              window.__v21LayoutTick=(window.__v21LayoutTick||0)+1;
+              if(window.__v21LayoutTick>2 && window.__v21LayoutDone===blocks) return;
+
+              const groups=v21Unique(blocks,['bank','shop','inn','smithy','pond','tree','copper','iron','travel','forester','miner','npc']);
+
+              // Town center / plaza anchors.
+              const spots={
+                bank:[11,4,2,2,1.7],
+                shop:[6,4,2,2,1.7],
+                inn:[2,8,2,2,1.7],
+                smithy:[11,10,2,2,1.7],
+                pond:[3,12,2,2,0],
+                travel:[16,8,1,1,.35],
+                forester:[3,5,1,1,0],
+                miner:[12,12,1,1,0],
+                npc:[8,8,1,1,0],
+                trees:[[2,3],[4,3],[2,5],[4,13],[1,11]],
+                copper:[[12,13],[14,12]],
+                iron:[[13,10],[15,11]]
+              };
+
+              if(groups.bank[0]) v21SetPos(groups.bank[0],...spots.bank);
+              if(groups.shop[0]) v21SetPos(groups.shop[0],...spots.shop);
+              if(groups.inn[0]) v21SetPos(groups.inn[0],...spots.inn);
+              if(groups.smithy[0]) v21SetPos(groups.smithy[0],...spots.smithy);
+              if(groups.pond[0]) v21SetPos(groups.pond[0],...spots.pond);
+              if(groups.travel[0]) v21SetPos(groups.travel[0],...spots.travel);
+              if(groups.forester[0]) v21SetPos(groups.forester[0],...spots.forester);
+              if(groups.miner[0]) v21SetPos(groups.miner[0],...spots.miner);
+
+              const freeNpcs=[...groups.npc].filter(e=>e!==groups.forester[0]&&e!==groups.miner[0]);
+              if(freeNpcs[0]) v21SetPos(freeNpcs[0],...spots.npc);
+              if(freeNpcs[1]) v21SetPos(freeNpcs[1],7,9,1,1,0);
+
+              groups.tree.forEach((e,i)=>{ const p=spots.trees[i%spots.trees.length]; v21SetPos(e,p[0],p[1],1,1,1.65); });
+              groups.copper.forEach((e,i)=>{ const p=spots.copper[i%spots.copper.length]; v21SetPos(e,p[0],p[1],1,1,.6); });
+              groups.iron.forEach((e,i)=>{ const p=spots.iron[i%spots.iron.length]; v21SetPos(e,p[0],p[1],1,1,.6); });
+
+              window.__v21LayoutDone=blocks;
+            }
+
+            function v21Poly(points,fill,stroke='rgba(255,255,255,.08)',lw=1){
+              if(!points||!points.length)return;
+              ctx.beginPath();
+              ctx.moveTo(points[0].x,points[0].y);
+              for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
+              ctx.closePath();
+              ctx.fillStyle=fill;ctx.fill();
+              if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();}
+            }
+            function v21Tile(x,y,z=0){
+              return [screen(x,y,z),screen(x+1,y,z),screen(x+1,y+1,z),screen(x,y+1,z)];
+            }
+            function v21DrawTile(x,y,fill,stroke='rgba(255,255,255,.06)',z=0.01){
+              v21Poly(v21Tile(x,y,z),fill,stroke,.8);
+            }
+            function v21DrawRoadNetwork(){
+              // Plaza
+              for(let x=6;x<=9;x++) for(let y=7;y<=10;y++) v21DrawTile(x,y,'#6b7280','rgba(255,255,255,.08)');
+              // Main east-west road
+              for(let x=2;x<=16;x++) for(let y=8;y<=9;y++) v21DrawTile(x,y, (x+y)%2 ? '#b45309' : '#c2410c','rgba(255,255,255,.04)');
+              // North spur to bank/shop
+              for(let y=4;y<=8;y++) for(let x=8;x<=9;x++) v21DrawTile(x,y, (x+y)%2 ? '#b45309' : '#c2410c','rgba(255,255,255,.04)');
+              for(let x=6;x<=11;x++) for(let y=5;y<=6;y++) v21DrawTile(x,y, (x+y)%2 ? '#b45309' : '#c2410c','rgba(255,255,255,.04)');
+              // West spur to inn
+              for(let x=2;x<=6;x++) for(let y=8;y<=9;y++) v21DrawTile(x,y, (x+y)%2 ? '#92400e' : '#b45309','rgba(255,255,255,.04)');
+              // South spur to pond and smithy/resource lane
+              for(let y=9;y<=13;y++) for(let x=8;x<=9;x++) v21DrawTile(x,y, (x+y)%2 ? '#92400e' : '#b45309','rgba(255,255,255,.04)');
+              for(let x=3;x<=9;x++) for(let y=12;y<=13;y++) v21DrawTile(x,y, (x+y)%2 ? '#92400e' : '#b45309','rgba(255,255,255,.04)');
+              for(let x=9;x<=13;x++) for(let y=10;y<=11;y++) v21DrawTile(x,y, (x+y)%2 ? '#92400e' : '#b45309','rgba(255,255,255,.04)');
+              // Exit road east
+              for(let x=9;x<=16;x++) for(let y=8;y<=9;y++) v21DrawTile(x,y, (x+y)%2 ? '#92400e' : '#b45309','rgba(255,255,255,.04)');
+            }
+            function v21DrawPlazaDecor(){
+              const c=screen(8,8,0.04);
+              ctx.strokeStyle='rgba(251,191,36,.5)';
+              ctx.lineWidth=2.6;
+              ctx.beginPath();
+              ctx.arc(c.x+18,c.y+18,20,0,Math.PI*2);
+              ctx.stroke();
+            }
+
+            const prevClearRect=ctx.clearRect.bind(ctx);
+            ctx.clearRect=function(){
+              prevClearRect(...arguments);
+              try{ v21DrawRoadNetwork(); v21DrawPlazaDecor(); }catch(err){}
+            };
+
+            // Re-apply layout a few times because some builds recreate zone arrays after load/save.
+            const prevRender=window.render;
+            if(typeof prevRender==='function'){
+              window.render=function(){
+                try{ v21ApplyLayout(); }catch(err){}
+                return prevRender.apply(this,arguments);
+              };
+            }
+
+            setInterval(()=>{ try{ v21ApplyLayout(); }catch(err){} },700);
+            v21ApplyLayout();
+            addLog('V21 loaded: village layout polish, central plaza, wider roads, and cleaner building spacing enabled.');
+          }
+        `);
+      }catch(e){console.warn('V21 layout polish patch failed',e);}
+    }
+
+    v21Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>220)clearInterval(t)},250);
+    });
+    setInterval(patch,1200);
+  </script>
+</body>
+</html>
