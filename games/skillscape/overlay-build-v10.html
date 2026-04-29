@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape Overlay V10</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="outerFrame" src="overlay-build-v9.html?v=raised-modal-1" title="Skillscape Overlay V10"></iframe>
+  <script>
+    const outerFrame=document.getElementById('outerFrame');
+
+    function patchDoc(d){
+      if(!d||d.getElementById('raisedModalPatch'))return;
+      const style=d.createElement('style');
+      style.id='raisedModalPatch';
+      style.textContent=`
+        .overlay{
+          align-items:flex-start!important;
+          justify-content:center!important;
+          padding:8vh .75rem .75rem!important;
+        }
+        .modal{
+          margin-top:0!important;
+          max-height:82vh!important;
+        }
+        @media(max-width:420px){
+          .overlay{padding:6vh .55rem .55rem!important;}
+          .modal{max-height:84vh!important;}
+        }
+        @media(min-width:900px){
+          .overlay{align-items:center!important;padding:1rem!important;}
+          .modal{max-height:86vh!important;}
+        }
+      `;
+      d.head.appendChild(style);
+    }
+
+    function patch(){
+      let outerDoc,innerFrame,innerDoc;
+      try{
+        outerDoc=outerFrame.contentDocument;
+        patchDoc(outerDoc);
+        innerFrame=outerDoc && outerDoc.getElementById('gameFrame');
+        innerDoc=innerFrame && innerFrame.contentDocument;
+        patchDoc(innerDoc);
+      }catch(e){return;}
+    }
+
+    outerFrame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{
+        patch();
+        ticks++;
+        if(ticks>40)clearInterval(t);
+      },250);
+    });
+
+    setInterval(patch,800);
+  </script>
+</body>
+</html>
