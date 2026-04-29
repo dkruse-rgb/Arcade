@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V10</title>
+  <style>
+    :root{
+      --bg:#020617;
+      --panel:#06112a;
+      --panel2:rgba(15,23,42,.82);
+      --line:rgba(255,255,255,.14);
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --accent1:#38bdf8;
+      --accent2:#22c55e;
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+
+    body{
+      overflow:auto;
+    }
+
+    .app{
+      min-height:100dvh;
+      display:flex;
+      flex-direction:column;
+      background:var(--bg);
+    }
+
+    .frameWrap{
+      flex:1 1 auto;
+      min-height:0;
+    }
+
+    iframe{
+      display:block;
+      width:100%;
+      height:78dvh;
+      min-height:640px;
+      border:0;
+      background:var(--bg);
+    }
+
+    .controlTray{
+      position:sticky;
+      bottom:0;
+      z-index:100;
+      padding:
+        .55rem
+        .55rem
+        calc(.75rem + env(safe-area-inset-bottom))
+        .55rem;
+      background:
+        linear-gradient(180deg, rgba(2,6,23,.82), rgba(2,6,23,.96));
+      backdrop-filter:blur(8px);
+      border-top:1px solid rgba(255,255,255,.08);
+      box-shadow:0 -10px 30px rgba(0,0,0,.25);
+    }
+
+    .useRow{
+      margin-bottom:.45rem;
+    }
+
+    .useBtn{
+      width:100%;
+      min-height:48px;
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:999px;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:#02111f;
+      font-weight:900;
+      font-size:1rem;
+      cursor:pointer;
+    }
+
+    .trayBottom{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      gap:.5rem;
+      align-items:end;
+    }
+
+    .dpad{
+      display:grid;
+      grid-template-columns:repeat(3,44px);
+      gap:.28rem;
+      align-self:end;
+    }
+
+    .dpad .blank{
+      visibility:hidden;
+    }
+
+    .dpad button{
+      min-height:42px;
+      border-radius:13px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      font-size:1.05rem;
+      font-weight:800;
+      cursor:pointer;
+      backdrop-filter:blur(4px);
+      touch-action:none;
+      user-select:none;
+    }
+
+    .actionGrid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:.35rem;
+    }
+
+    .actionGrid button{
+      min-height:40px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(15,23,42,.72);
+      color:var(--text);
+      font-size:.82rem;
+      font-weight:800;
+      cursor:pointer;
+      backdrop-filter:blur(4px);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .hint{
+      margin-top:.4rem;
+      font-size:.74rem;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    @media (max-width: 700px){
+      iframe{
+        height:74dvh;
+        min-height:600px;
+      }
+    }
+
+    @media (max-width: 520px){
+      iframe{
+        height:72dvh;
+        min-height:560px;
+      }
+
+      .controlTray{
+        padding:
+          .48rem
+          .48rem
+          calc(.7rem + env(safe-area-inset-bottom))
+          .48rem;
+      }
+
+      .useBtn{
+        min-height:44px;
+        font-size:.95rem;
+      }
+
+      .trayBottom{
+        grid-template-columns:auto 1fr;
+        gap:.42rem;
+      }
+
+      .dpad{
+        grid-template-columns:repeat(3,40px);
+        gap:.24rem;
+      }
+
+      .dpad button{
+        min-height:38px;
+        border-radius:12px;
+        font-size:.95rem;
+      }
+
+      .actionGrid{
+        grid-template-columns:repeat(2, minmax(0,1fr));
+        gap:.28rem;
+      }
+
+      .actionGrid button{
+        min-height:36px;
+        font-size:.8rem;
+      }
+    }
+
+    @media (max-width: 390px){
+      iframe{
+        height:70dvh;
+        min-height:520px;
+      }
+
+      .dpad{
+        grid-template-columns:repeat(3,36px);
+      }
+
+      .dpad button{
+        min-height:34px;
+        font-size:.9rem;
+      }
+
+      .actionGrid button{
+        min-height:34px;
+        font-size:.76rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="frameWrap">
+      <iframe
+        id="v10Frame"
+        src="skillscape-2-5d-v9.html?v=v10-controls-outside-canvas-1"
+        title="Skillscape 2.5D Prototype V10"
+      ></iframe>
+    </div>
+
+    <div class="controlTray">
+      <div class="useRow">
+        <button id="useNearby" class="useBtn">Use Nearby</button>
+      </div>
+
+      <div class="trayBottom">
+        <div class="dpad">
+          <span class="blank"></span>
+          <button data-key="ArrowUp">▲</button>
+          <span class="blank"></span>
+
+          <button data-key="ArrowLeft">◀</button>
+          <button data-key="ArrowDown">▼</button>
+          <button data-key="ArrowRight">▶</button>
+        </div>
+
+        <div class="actionGrid">
+          <button data-click="invBtn">🎒 Bag</button>
+          <button data-click="skillsBtn">⚡ Skills</button>
+          <button data-click="equipBtn">🛡️ Gear</button>
+          <button data-click="logBtn">☠️ Log</button>
+        </div>
+      </div>
+
+      <div class="hint">V10: controls moved below the canvas for a cleaner mobile layout.</div>
+    </div>
+  </div>
+
+  <script>
+    const frame = document.getElementById('v10Frame');
+
+    function findGame(doc, depth = 0){
+      if(!doc || depth > 14) return null;
+      try{
+        if(doc.getElementById('game') && doc.defaultView){
+          return { doc, win: doc.defaultView };
+        }
+        const frames = [...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit = findGame(f.contentDocument, depth + 1);
+          if(hit) return hit;
+        }
+      }catch(e){
+        return null;
+      }
+      return null;
+    }
+
+    function getGame(){
+      try{
+        return findGame(frame.contentDocument);
+      }catch(e){
+        return null;
+      }
+    }
+
+    function patchInner(){
+      const hit = getGame();
+      if(!hit) return;
+      const d = hit.doc;
+      const w = hit.win;
+
+      if(!d.getElementById('v10OutsideControlsStyle')){
+        const style = d.createElement('style');
+        style.id = 'v10OutsideControlsStyle';
+        style.textContent = `
+          html,body{
+            overflow-x:hidden !important;
+            max-width:100% !important;
+          }
+
+          .side{
+            display:none !important;
+          }
+
+          .gameGrid{
+            grid-template-columns:1fr !important;
+          }
+
+          .smallNote{
+            display:none !important;
+          }
+
+          .controls{
+            display:none !important;
+          }
+
+          .canvasWrap{
+            height:min(58vh, 620px) !important;
+            min-height:360px !important;
+            max-height:none !important;
+          }
+
+          .canvasPanel{
+            padding:.7rem !important;
+          }
+
+          .rpgProgress{
+            left:.5rem !important;
+            right:.5rem !important;
+            bottom:.5rem !important;
+            z-index:18 !important;
+          }
+
+          .hudTop{
+            z-index:20 !important;
+            max-width:calc(100% - 7.5rem) !important;
+          }
+
+          .v7CameraDock{
+            z-index:22 !important;
+            top:.65rem !important;
+            right:.65rem !important;
+          }
+
+          .v7CameraDock button,
+          .v7CameraDock span{
+            font-size:.74rem !important;
+            padding:.34rem .48rem !important;
+          }
+
+          @media(max-width:520px){
+            .canvasWrap{
+              height:54vh !important;
+              min-height:330px !important;
+            }
+          }
+
+          @media(max-width:390px){
+            .canvasWrap{
+              height:50vh !important;
+              min-height:300px !important;
+            }
+          }
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v10OutsideTrayLoaded){
+            window.__v10OutsideTrayLoaded = true;
+            addLog('V10 loaded: controls moved below the canvas.');
+          }
+        `);
+      }catch(e){}
+    }
+
+    function dispatchKey(type, key){
+      const hit = getGame();
+      if(!hit) return;
+      const evt = new hit.win.KeyboardEvent(type, {
+        key,
+        code:key,
+        bubbles:true,
+        cancelable:true
+      });
+      hit.win.dispatchEvent(evt);
+      try{
+        hit.doc.dispatchEvent(evt);
+      }catch(e){}
+    }
+
+    function bindHold(button, key){
+      let active = false;
+
+      const start = (e) => {
+        e.preventDefault();
+        if(active) return;
+        active = true;
+        dispatchKey('keydown', key);
+      };
+
+      const stop = (e) => {
+        if(e) e.preventDefault();
+        if(!active) return;
+        active = false;
+        dispatchKey('keyup', key);
+      };
+
+      button.addEventListener('pointerdown', start, {passive:false});
+      button.addEventListener('pointerup', stop, {passive:false});
+      button.addEventListener('pointercancel', stop, {passive:false});
+      button.addEventListener('pointerleave', stop, {passive:false});
+
+      button.addEventListener('touchstart', start, {passive:false});
+      button.addEventListener('touchend', stop, {passive:false});
+      button.addEventListener('touchcancel', stop, {passive:false});
+
+      button.addEventListener('mousedown', start);
+      button.addEventListener('mouseup', stop);
+      button.addEventListener('mouseleave', stop);
+    }
+
+    function clickInnerButton(id){
+      const hit = getGame();
+      if(!hit) return;
+      const btn = hit.doc.getElementById(id);
+      if(btn) btn.click();
+    }
+
+    function initOuterControls(){
+      document.querySelectorAll('[data-key]').forEach(btn => {
+        bindHold(btn, btn.dataset.key);
+      });
+
+      document.getElementById('useNearby').addEventListener('click', () => {
+        clickInnerButton('useBtn');
+      });
+
+      document.querySelectorAll('[data-click]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          clickInnerButton(btn.dataset.click);
+        });
+      });
+    }
+
+    frame.addEventListener('load', () => {
+      patchInner();
+      let ticks = 0;
+      const timer = setInterval(() => {
+        patchInner();
+        ticks++;
+        if(ticks > 90) clearInterval(timer);
+      }, 250);
+    });
+
+    setInterval(patchInner, 1200);
+    initOuterControls();
+  </script>
+</body>
+</html>
