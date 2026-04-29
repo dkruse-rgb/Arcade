@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V11</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v11Frame" src="skillscape-2-5d-v10.html?v=progress-meter-fix-1" title="Skillscape 2.5D Prototype V11"></iframe>
+  <script>
+    const v11Frame=document.getElementById('v11Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>16)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        const frames=[...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v11Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v11ProgressFixStyle')){
+        const style=d.createElement('style');
+        style.id='v11ProgressFixStyle';
+        style.textContent=`
+          .rpgProgress{
+            left:.7rem!important;
+            right:.7rem!important;
+            bottom:1.55rem!important;
+            z-index:40!important;
+            padding:.62rem .72rem!important;
+            border-radius:16px!important;
+            background:rgba(2,6,23,.86)!important;
+            border:1px solid rgba(255,255,255,.2)!important;
+            box-shadow:0 14px 32px rgba(0,0,0,.38)!important;
+            max-height:none!important;
+            overflow:visible!important;
+          }
+          .rpgProgress b{
+            font-size:.95rem!important;
+            line-height:1.15!important;
+            margin-bottom:.42rem!important;
+            white-space:nowrap!important;
+            overflow:hidden!important;
+            text-overflow:ellipsis!important;
+          }
+          .rpgBarBox{
+            height:13px!important;
+            border-radius:999px!important;
+            overflow:hidden!important;
+          }
+          .rpgBar{
+            min-width:0!important;
+          }
+          .canvasWrap{
+            overflow:hidden!important;
+          }
+          @media(max-width:520px){
+            .rpgProgress{
+              left:.55rem!important;
+              right:.55rem!important;
+              bottom:1.85rem!important;
+              padding:.55rem .62rem!important;
+            }
+            .rpgProgress b{
+              font-size:.88rem!important;
+            }
+            .rpgBarBox{
+              height:12px!important;
+            }
+          }
+          @media(max-width:390px){
+            .rpgProgress{
+              bottom:2.05rem!important;
+              padding:.5rem .55rem!important;
+            }
+            .rpgProgress b{
+              font-size:.82rem!important;
+            }
+          }
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v11ProgressMeterFix){
+            window.__v11ProgressMeterFix=true;
+            addLog('V11 loaded: progress meter moved higher so it no longer gets cut off.');
+            if(typeof resize==='function')setTimeout(resize,100);
+          }
+        `);
+      }catch(e){console.warn('V11 progress meter patch failed',e);}
+    }
+
+    v11Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>100)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
