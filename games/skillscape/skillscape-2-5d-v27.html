@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D V27</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="skillscape-2-5d-v24.html?v=tools-visible-owned-1" title="Skillscape 2.5D V27"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+
+    function patch(){
+      let d,w;
+      try{d=frame.contentDocument;w=frame.contentWindow;if(!d||!w)return;}catch(e){return;}
+      if(d.getElementById('v27ToolPatch'))return;
+
+      const style=d.createElement('style');
+      style.id='v27ToolPatch';
+      style.textContent=`
+        html,body,.app,.tray,.dpad,.dpad *,.actions,.actions *,button,#use,#game,.wrap,.cam,.cam *{
+          -webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important;
+        }
+        button{outline:none!important;touch-action:manipulation!important}.dpad button{touch-action:none!important}#use{touch-action:manipulation!important}
+        ::selection{background:transparent!important;color:inherit!important}.ownedTag{display:inline-block;margin-left:.35rem;padding:.1rem .42rem;border-radius:999px;background:rgba(34,197,94,.18);border:1px solid rgba(34,197,94,.45);color:#bbf7d0;font-size:.72rem;font-weight:900}
+      `;
+      d.head.appendChild(style);
+
+      const script=d.createElement('script');
+      script.id='v27ToolPatchScript';
+      script.textContent=`
+        (function(){
+          if(window.__v27ToolsVisible)return;
+          window.__v27ToolsVisible=true;
+
+          function toolName(k,lvl){
+            if(k==='axe')return lvl>1?'Bronze Axe':'Starter Axe';
+            if(k==='pickaxe')return lvl>1?'Bronze Pickaxe':'Starter Pickaxe';
+            if(k==='rod')return lvl>1?'Better Rod':'Starter Rod';
+            return k;
+          }
+          function toolsHtml(){
+            const t=state.tools||{axe:1,pickaxe:1,rod:1};
+            return '<div class="card"><b>🧰 Tools</b><div class="small">Tools are upgrades, not bag items, so they do not use inventory space.</div>'+[
+              ['axe','Woodcutting'],['pickaxe','Mining'],['rod','Fishing']
+            ].map(([k,label])=>'<div class="small">'+label+': <b>'+toolName(k,t[k]||1)+'</b> • Level '+(t[k]||1)+'</div>').join('')+'</div>';
+          }
+
+          const oldOpenPanel=openPanel;
+          openPanel=function(k){
+            if(k==='inventory'||k==='bag'){
+              return modal('🎒 Bag','Carried items and owned tools.',toolsHtml()+Object.keys(ITEMS).map(i=>'<div class="card"><b>'+nm(i)+'</b><div class="small">Carry: '+(state.inv[i]||0)+'</div></div>').join(''));
+            }
+            return oldOpenPanel(k);
+          };
+          window.openPanel=openPanel;
+
+          shopPanel=function(){
+            const shopHtml=SHOP.map((it,i)=>{
+              const [name,type,key,level,cost]=it;
+              let owned=false, ownedText='';
+              if(type==='tool'){
+                owned=(state.tools&&Number(state.tools[key]||1)>=Number(level||1));
+                ownedText=owned?' <span class="ownedTag">Owned</span>':'';
+              }else if(type==='gear'){
+                owned=(state.owned||[]).includes(key);
+                ownedText=owned?' <span class="ownedTag">Owned</span>':'';
+              }
+              const disabled=owned?'disabled':'';
+              const detail=type==='tool'?'Tool upgrade • does not use bag space':type==='gear'?'Equipment item':'Inventory upgrade';
+              return '<div class="card"><b>'+name+ownedText+'</b><div class="small">'+detail+' • '+cost+'g</div><button '+disabled+' onclick="buy('+i+')">'+(owned?'Owned':'Buy')+'</button></div>';
+            }).join('');
+            const sellHtml=Object.keys(ITEMS).map(k=>'<div class="card"><b>'+nm(k)+'</b><div class="small">'+(state.inv[k]||0)+' carried • '+PRICE[k]+'g</div><button onclick="sell(\\''+k+'\\',1)">Sell 1</button><button onclick="sell(\\''+k+'\\',999)">Sell All</button></div>').join('');
+            modal('🏪 Shop','Buy upgrades and sell items.',toolsHtml()+shopHtml+'<hr>'+sellHtml);
+          };
+          window.shopPanel=shopPanel;
+
+          buy=function(i){
+            const it=SHOP[i];
+            const [name,type,key,level,cost]=it;
+            if(type==='tool' && state.tools && Number(state.tools[key]||1)>=Number(level||1)){
+              log(name+' already owned.');
+              shopPanel();
+              return;
+            }
+            if(type==='gear' && (state.owned||[]).includes(key)){
+              log(name+' already owned.');
+              shopPanel();
+              return;
+            }
+            if(state.gold<cost){log('Need more gold.');return;}
+            state.gold-=cost;
+            if(type==='tool')state.tools[key]=level;
+            if(type==='gear'&&!state.owned.includes(key))state.owned.push(key);
+            if(type==='bag')state.bagMax+=level;
+            log('Bought '+name+'.');
+            save();
+            shopPanel();
+          };
+          window.buy=buy;
+
+          const use=document.getElementById('use');
+          if(use&&!use.dataset.v27TapFixed){
+            use.dataset.v27TapFixed='1';
+            let lastTap=0;
+            use.addEventListener('pointerup',e=>{
+              const now=Date.now();
+              if(now-lastTap<350)return;
+              lastTap=now;
+              try{useNear();}catch(err){try{use.click();}catch(e2){}}
+            },{passive:true});
+          }
+
+          ['selectstart','dragstart','contextmenu'].forEach(type=>document.addEventListener(type,e=>{
+            if(e.target.closest&&e.target.closest('.dpad,.actions,.cam,#use,button'))e.preventDefault();
+          },{capture:true}));
+          log('V27 loaded: tool ownership now shows in Bag and Shop.');
+        })();
+      `;
+      d.body.appendChild(script);
+    }
+
+    frame.addEventListener('load',()=>{patch();let n=0;const t=setInterval(()=>{patch();if(++n>20)clearInterval(t)},250)});
+  </script>
+</body>
+</html>
