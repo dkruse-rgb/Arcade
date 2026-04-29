@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V6</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v6Frame" src="skillscape-2-5d-v5.html?v=rpg-systems-1" title="Skillscape 2.5D Prototype V6"></iframe>
+  <script>
+    const v6Frame=document.getElementById('v6Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>8)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        const frames=[...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v6Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v6RpgStyle')){
+        const style=d.createElement('style');
+        style.id='v6RpgStyle';
+        style.textContent=`
+          .rpgProgress{position:absolute;left:.75rem;right:.75rem;bottom:5.25rem;z-index:8;background:rgba(2,6,23,.82);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:.6rem;display:none;box-shadow:0 14px 32px rgba(0,0,0,.35)}
+          .rpgProgress.show{display:block}.rpgProgress b{display:block;margin-bottom:.35rem}.rpgBarBox{height:12px;border-radius:999px;background:#0008;overflow:hidden}.rpgBar{height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#22c55e,#fbbf24)}
+          .rpgCounts,.rpgSummary{display:flex;gap:.4rem;flex-wrap:wrap;margin:.4rem 0 .75rem}.rpgCounts span,.rpgSummary span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .5rem;font-size:.84rem;color:#cbd5e1}
+          .rpgControls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;margin-top:.55rem}.rpgControls button{justify-content:center;padding:.48rem .35rem;font-size:.82rem}
+          .rpgItem{background:rgba(30,41,59,.82);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:.78rem;margin:.48rem 0}.rpgItem b{display:block;margin-bottom:.2rem}.rpgGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.rpgShopRow{display:flex;justify-content:space-between;gap:.6rem;align-items:center;background:rgba(30,41,59,.82);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:.75rem;margin:.45rem 0}.rpgShopRow button:disabled,.rpgControls button:disabled{opacity:.45;cursor:not-allowed}.rpgMuted{color:#94a3b8}.rpgDivider{border-color:rgba(255,255,255,.14);margin:1rem 0}.rpgDanger{color:#fecdd3}
+          @media(max-width:520px){.rpgGrid{grid-template-columns:1fr}.rpgShopRow{align-items:flex-start;flex-direction:column}.rpgShopRow button{width:100%}.rpgControls{grid-template-columns:repeat(2,minmax(0,1fr))}.rpgProgress{bottom:5.8rem;left:.5rem;right:.5rem}}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__skillscape25dRpgV6){
+            window.__skillscape25dRpgV6=true;
+            const V6_ITEMS=['logs','oakLogs','copperOre','ironOre','rawFish','cookedFish','bones','goblinEars'];
+            const V6_ITEM_NAMES={logs:'Logs',oakLogs:'Oak Logs',copperOre:'Copper Ore',ironOre:'Iron Ore',rawFish:'Raw Fish',cookedFish:'Cooked Fish',bones:'Bones',goblinEars:'Goblin Ears'};
+            const V6_PRICES={logs:2,oakLogs:7,copperOre:3,ironOre:8,rawFish:3,cookedFish:6,bones:2,goblinEars:10};
+            const V6_SKILLS={woodcutting:'Woodcutting',mining:'Mining',fishing:'Fishing',cooking:'Cooking',combat:'Combat',smithing:'Smithing'};
+            const V6_GEAR={fists:{name:'Bare Hands',slot:'weapon',atk:1,def:0},rustySword:{name:'Rusty Sword',slot:'weapon',atk:3,def:0},bronzeSword:{name:'Bronze Sword',slot:'weapon',atk:6,def:0},woodShield:{name:'Wooden Shield',slot:'shield',atk:0,def:2},leatherCap:{name:'Leather Cap',slot:'helmet',atk:0,def:1},leatherChest:{name:'Leather Chest',slot:'chest',atk:0,def:2},leatherBoots:{name:'Leather Boots',slot:'boots',atk:0,def:1},ironShield:{name:'Iron Shield',slot:'shield',atk:0,def:5}};
+            const V6_SHOP=[['Bronze Axe','tool','axe',2,60,'Faster woodcutting'],['Bronze Pickaxe','tool','pickaxe',2,60,'Faster mining'],['Better Rod','tool','rod',2,55,'Faster fishing'],['Iron Pan','tool','pan',2,45,'Faster cooking'],['Rusty Sword','gear','rustySword',0,50,'+3 attack'],['Wooden Shield','gear','woodShield',0,55,'+2 defense'],['Leather Cap','gear','leatherCap',0,45,'+1 defense'],['Leather Chest','gear','leatherChest',0,80,'+2 defense'],['Leather Boots','gear','leatherBoots',0,40,'+1 defense'],['Bronze Sword','gear','bronzeSword',0,140,'+6 attack'],['Iron Shield','gear','ironShield',0,180,'+5 defense'],['Bigger Backpack','bag','bag',10,250,'+10 bag space']];
+
+            function emptyObj(){return Object.fromEntries(V6_ITEMS.map(i=>[i,0]))}
+            state.inv={...emptyObj(),...(state.inv||{})};
+            state.bank={...emptyObj(),...(state.bank||{})};
+            state.skills={woodcutting:0,mining:0,fishing:0,cooking:0,combat:0,smithing:0,...(state.skills||{})};
+            state.tools={axe:1,pickaxe:1,rod:1,pan:1,...(state.tools||{})};
+            state.owned=[...new Set(['fists',...(state.owned||[])])];
+            state.eq={weapon:'fists',shield:null,helmet:null,chest:null,boots:null,...(state.eq||{})};
+            state.gold=state.gold??60;state.maxHp=state.maxHp??30;state.hp=Math.min(state.hp??30,state.maxHp);state.bagMax=state.bagMax||20;
+
+            const progress=document.createElement('div');
+            progress.className='rpgProgress';progress.id='rpgProgress';progress.innerHTML='<b id="rpgProgressLabel">Working...</b><div class="rpgBarBox"><div class="rpgBar" id="rpgProgressBar"></div></div>';
+            document.getElementById('canvasWrap').appendChild(progress);
+            const progLabel=document.getElementById('rpgProgressLabel'),progBar=document.getElementById('rpgProgressBar');
+            let activeJob=null;
+
+            function itemName(k){return V6_ITEM_NAMES[k]||k.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase())}
+            function used(){state.bag=V6_ITEMS.reduce((a,k)=>a+(state.inv[k]||0),0);return state.bag}
+            function free(){return Math.max(0,state.bagMax-used())}
+            function lvl(xp){let l=1;while(xp>=Math.floor(50*Math.pow(l+1,1.55)))l++;return l}
+            function xpPct(xp){let l=lvl(xp),p=Math.floor(50*Math.pow(l,1.55)),n=Math.floor(50*Math.pow(l+1,1.55));return Math.max(0,Math.min(100,Math.round((xp-p)/(n-p)*100)))}
+            function gainSkill(skill,xp){state.skills[skill]=(state.skills[skill]||0)+xp}
+            function addItem(k,n){if(k==='gold'){state.gold+=n;return true}if(free()<n)return false;state.inv[k]=(state.inv[k]||0)+n;used();return true}
+            function hasItems(req={}){return Object.entries(req).every(([k,v])=>(state.inv[k]||0)>=v)}
+            function takeItems(req={}){Object.entries(req).forEach(([k,v])=>state.inv[k]-=v);used()}
+            function saveV6(){used();localStorage.setItem(SAVE,JSON.stringify(state));renderHUD()}
+            function combatStats(){let atk=0,def=0;Object.values(state.eq).forEach(id=>{if(id&&V6_GEAR[id]){atk+=V6_GEAR[id].atk;def+=V6_GEAR[id].def}});atk+=Math.floor(lvl(state.skills.combat)/3);return {atk,def}}
+            function toolBoost(tool){return state.tools[tool]||1}
+            function jobDuration(base,tool){return Math.max(.65,base/(1+(toolBoost(tool)-1)*.38))}
+
+            const oldRenderHUD=renderHUD;
+            renderHUD=function(logRender=true){used();oldRenderHUD(logRender);ui.gold.textContent=state.gold;ui.hp.textContent=state.hp+'/'+state.maxHp;ui.bag.textContent=used()+'/'+state.bagMax};
+
+            const oldUpdate=update;
+            update=function(dt){if(activeJob)return;oldUpdate(dt)};
+
+            function startJob(opts){
+              if(activeJob){addLog('Already busy.');return}
+              if(opts.req&&!hasItems(opts.req)){addLog('Missing required items.');return}
+              const rewardSlots=Object.entries(opts.reward||{}).filter(([k])=>k!=='gold').reduce((a,[,v])=>a+v,0);
+              const consumeSlots=Object.entries(opts.req||{}).reduce((a,[,v])=>a+v,0);
+              if(rewardSlots-consumeSlots>free()){addLog('Bag full. Bank or sell items first.');return}
+              if(opts.req)takeItems(opts.req);
+              const start=performance.now();const dur=(opts.sec||2)*1000;activeJob=opts;progLabel.textContent=opts.label;progBar.style.width='0%';progress.classList.add('show');
+              const tick=()=>{
+                if(!activeJob)return;
+                const p=Math.min(1,(performance.now()-start)/dur);progBar.style.width=(p*100)+'%';
+                if(p>=1){
+                  const done=activeJob;activeJob=null;progress.classList.remove('show');
+                  Object.entries(done.reward||{}).forEach(([k,v])=>addItem(k,v));
+                  if(done.skill)gainSkill(done.skill,done.xp||0);
+                  if(done.damage){state.hp=Math.max(0,state.hp-done.damage)}
+                  addLog(done.done||done.label+' complete.');saveV6();renderHUD();return;
+                }
+                requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            }
+
+            function classifyTarget(e){
+              if(e.id==='tree1'||e.id==='tree2'||e.id==='tree3')return {label:'Chopping tree...',sec:jobDuration(2.4,'axe'),skill:'woodcutting',xp:8,reward:{logs:1},done:'Chopped 1 Logs. +8 Woodcutting XP.'};
+              if(e.id==='rock1')return {label:'Mining copper...',sec:jobDuration(2.7,'pickaxe'),skill:'mining',xp:9,reward:{copperOre:1},done:'Mined 1 Copper Ore. +9 Mining XP.'};
+              if(e.id==='rock2')return {label:'Mining iron...',sec:jobDuration(3.5,'pickaxe'),skill:'mining',xp:17,reward:{ironOre:1},done:'Mined 1 Iron Ore. +17 Mining XP.'};
+              if(e.id==='pond')return {label:'Fishing...',sec:jobDuration(3,'rod'),skill:'fishing',xp:10,reward:{rawFish:1},done:'Caught 1 Raw Fish. +10 Fishing XP.'};
+              if(e.id==='rat'){
+                const cs=combatStats();const dmg=Math.max(0,3-Math.floor(cs.def*.4));
+                return {label:'Fighting rat...',sec:Math.max(1.1,2.4/(1+cs.atk*.06)),skill:'combat',xp:8,reward:{bones:1,gold:3},damage:dmg,done:'Defeated a Giant Rat. +8 Combat XP, +1 Bones, +3 Gold.'};
+              }
+              return null;
+            }
+
+            const oldInteract=interact;
+            interact=function(e){
+              if(e.kind==='resource'||e.kind==='enemy'){
+                const job=classifyTarget(e);if(job)return startJob(job);
+              }
+              if(e.id==='bank')return openPanel('bank');
+              if(e.id==='shop')return openPanel('shop');
+              if(e.id==='inn'){state.hp=state.maxHp;addLog('Rested at the inn. HP restored.');saveV6();return}
+              if(e.id==='smithy')return openPanel('smithy');
+              if(e.kind==='npc')return openDialogueV6(e);
+              oldInteract(e);
+            };
+
+            function openDialogueV6(e){ui.overlay.classList.add('show');ui.modalTitle.textContent=(e.icon||'')+' '+e.name;ui.modalHint.textContent='NPC dialogue';ui.modalBody.innerHTML='<div class="rpgItem"><b>'+e.name+'</b><p class="rpgMuted">'+(e.msg||'Hello there.')+'</p></div><button class="primary" onclick="closePanel()">Continue</button>'}
+
+            function bankHTML(){return '<div class="rpgSummary"><span>Bag '+used()+'/'+state.bagMax+'</span><span>Free '+free()+'</span></div><div class="nav"><button class="primary" onclick="depAll()">Deposit all bag</button><button class="btn" onclick="withAll()">Withdraw until full</button></div><div class="rpgGrid">'+V6_ITEMS.map(k=>{let c=state.inv[k]||0,b=state.bank[k]||0;return '<div class="rpgItem"><b>'+itemName(k)+'</b><div class="rpgCounts"><span>Carry: '+c+'</span><span>Bank: '+b+'</span></div><div class="rpgControls"><button class="btn" '+(c<=0?'disabled':'')+' onclick="depositAmount(\\''+k+'\\',1)">Dep 1</button><button class="btn" '+(c<=0?'disabled':'')+' onclick="depositAmount(\\''+k+'\\',5)">Dep 5</button><button class="btn" '+(c<=0?'disabled':'')+' onclick="depositAmount(\\''+k+'\\',999)">Dep All</button><button class="btn" '+(b<=0||free()<=0?'disabled':'')+' onclick="withdrawAmount(\\''+k+'\\',1)">With 1</button><button class="btn" '+(b<=0||free()<=0?'disabled':'')+' onclick="withdrawAmount(\\''+k+'\\',5)">With 5</button><button class="btn" '+(b<=0||free()<=0?'disabled':'')+' onclick="withdrawAmount(\\''+k+'\\',999)">With All</button></div></div>'}).join('')+'</div>'}
+            window.depositAmount=function(k,n){let m=Math.min(n,state.inv[k]||0);if(!m){addLog('No '+itemName(k)+' in your bag.');return openPanel('bank')}state.inv[k]-=m;state.bank[k]+=m;addLog('Deposited '+m+' '+itemName(k)+'.');saveV6();openPanel('bank')};
+            window.withdrawAmount=function(k,n){let m=Math.min(n,state.bank[k]||0,free());if(!m){addLog(free()<=0?'Your bag is full.':'No '+itemName(k)+' in the bank.');return openPanel('bank')}state.bank[k]-=m;state.inv[k]+=m;addLog('Withdrew '+m+' '+itemName(k)+'.');saveV6();openPanel('bank')};
+            window.depAll=function(){let m=0;V6_ITEMS.forEach(k=>{let q=state.inv[k]||0;if(q){state.bank[k]+=q;state.inv[k]=0;m+=q}});addLog(m?'Deposited '+m+' items.':'Nothing to deposit.');saveV6();openPanel('bank')};
+            window.withAll=function(){let m=0;for(const k of V6_ITEMS){while(state.bank[k]>0&&free()>0){state.bank[k]--;state.inv[k]++;m++}}addLog(m?'Withdrew '+m+' items.':'No room or nothing to withdraw.');saveV6();openPanel('bank')};
+
+            function inventoryHTML(){return '<div class="rpgSummary"><span>Bag '+used()+'/'+state.bagMax+'</span><span>Free '+free()+'</span><span>Gold '+state.gold+'</span></div><div class="nav"><button class="primary" onclick="eatFish()">Eat fish</button></div><div class="rpgGrid">'+V6_ITEMS.map(k=>'<div class="rpgItem"><b>'+itemName(k)+'</b><p class="rpgMuted">Carrying: '+(state.inv[k]||0)+'</p></div>').join('')+'</div>'}
+            window.eatFish=function(){if((state.inv.cookedFish||0)<=0){addLog('No cooked fish.');return openPanel('inventory')}state.inv.cookedFish--;state.hp=Math.min(state.maxHp,state.hp+10+lvl(state.skills.cooking));addLog('Ate cooked fish. HP restored.');saveV6();openPanel('inventory')};
+
+            function skillsHTML(){return Object.entries(state.skills).map(([k,v])=>'<div class="rpgItem"><b>'+V6_SKILLS[k]+'</b><p class="rpgMuted">Level '+lvl(v)+' • '+v+' XP</p><div class="barBox"><div class="bar" style="width:'+xpPct(v)+'%"></div></div></div>').join('')}
+            function equipmentHTML(){const cs=combatStats();return '<div class="rpgSummary"><span>Attack '+cs.atk+'</span><span>Defense '+cs.def+'</span><span>Combat Lv '+lvl(state.skills.combat)+'</span></div><div class="rpgGrid">'+Object.entries(state.eq).map(([slot,id])=>'<div class="rpgItem"><b>'+slot[0].toUpperCase()+slot.slice(1)+'</b><p class="rpgMuted">'+(id?V6_GEAR[id].name:'Empty')+'</p></div>').join('')+'</div><hr class="rpgDivider"><h3>Owned Gear</h3>'+state.owned.map(id=>{let g=V6_GEAR[id],on=state.eq[g.slot]===id;return '<button class="btn" '+(on?'disabled':'')+' onclick="equipGear(\\''+id+'\\')">'+g.name+' • A'+g.atk+'/D'+g.def+(on?' equipped':'')+'</button>'}).join(' ')}
+            window.equipGear=function(id){let g=V6_GEAR[id];if(!g)return;state.eq[g.slot]=id;addLog('Equipped '+g.name+'.');saveV6();openPanel('equipment')};
+
+            function shopHTML(){let buy=V6_SHOP.map((it,i)=>{let owned=it[1]==='tool'?state.tools[it[2]]>=it[3]:it[1]==='gear'?state.owned.includes(it[2]):it[1]==='bag'?state.bagUpgraded:false;return '<div class="rpgShopRow"><div><b>'+it[0]+'</b><p class="rpgMuted">'+it[5]+'</p></div><button class="btn" '+(owned||state.gold<it[4]?'disabled':'')+' onclick="buyShop('+i+')">'+(owned?'Owned':it[4]+'g')+'</button></div>'}).join('');let sell=V6_ITEMS.map(k=>{let q=state.inv[k]||0,each=V6_PRICES[k]||0,total=q*each;return '<div class="rpgItem"><b>'+itemName(k)+'</b><div class="rpgCounts"><span>Carry: '+q+'</span><span>'+each+'g each</span><span>Total: '+total+'g</span></div><div class="rpgControls"><button class="btn" '+(q<=0?'disabled':'')+' onclick="sellAmount(\\''+k+'\\',1)">Sell 1</button><button class="btn" '+(q<=0?'disabled':'')+' onclick="sellAmount(\\''+k+'\\',5)">Sell 5</button><button class="btn" '+(q<=0?'disabled':'')+' onclick="sellAmount(\\''+k+'\\',999)">Sell All</button></div></div>'}).join('');return '<h3>Buy Upgrades</h3>'+buy+'<hr class="rpgDivider"><h3>Sell Items</h3><p class="rpgMuted">Banked items stay safe.</p><div class="nav"><button class="primary" onclick="sellAllInventory()">Sell all inventory</button></div>'+sell}
+            window.buyShop=function(i){let it=V6_SHOP[i],type=it[1],key=it[2],val=it[3],cost=it[4];if(state.gold<cost){addLog('Need '+cost+' gold.');return openPanel('shop')}state.gold-=cost;if(type==='tool')state.tools[key]=val;if(type==='gear'){state.owned.push(key);equipGear(key);return}if(type==='bag'){state.bagMax+=val;state.bagUpgraded=true}addLog('Bought '+it[0]+'.');saveV6();openPanel('shop')};
+            window.sellAmount=function(k,n){let q=Math.min(n,state.inv[k]||0);if(!q){addLog('No '+itemName(k)+' to sell.');return openPanel('shop')}let gain=q*(V6_PRICES[k]||0);state.inv[k]-=q;state.gold+=gain;addLog('Sold '+q+' '+itemName(k)+' for '+gain+' gold.');saveV6();openPanel('shop')};
+            window.sellAllInventory=function(){let sold=0,gain=0;V6_ITEMS.forEach(k=>{let q=state.inv[k]||0;if(q){sold+=q;gain+=q*(V6_PRICES[k]||0);state.inv[k]=0}});if(sold){state.gold+=gain;addLog('Sold '+sold+' items for '+gain+' gold.')}else addLog('Nothing to sell.');saveV6();openPanel('shop')};
+
+            function smithyHTML(){return '<div class="rpgItem"><b>Cook Fish</b><p class="rpgMuted">Uses 1 Raw Fish to make 1 Cooked Fish.</p><button class="primary" '+((state.inv.rawFish||0)<=0?'disabled':'')+' onclick="cookFish()">Cook 1 Fish</button></div><div class="rpgItem"><b>Smelt Trade Goods</b><p class="rpgMuted">Uses 1 Copper Ore and 1 Logs for 7 gold and Smithing XP.</p><button class="primary" '+(!hasItems({copperOre:1,logs:1})?'disabled':'')+' onclick="smeltGoods()">Smelt</button></div>'}
+            window.cookFish=function(){if(!hasItems({rawFish:1}))return openPanel('smithy');startJob({label:'Cooking fish...',sec:1.8,req:{rawFish:1},reward:{cookedFish:1},skill:'cooking',xp:9,done:'Cooked 1 fish. +9 Cooking XP.'});closePanel()};
+            window.smeltGoods=function(){if(!hasItems({copperOre:1,logs:1}))return openPanel('smithy');startJob({label:'Smelting...',sec:2.6,req:{copperOre:1,logs:1},reward:{gold:7},skill:'smithing',xp:14,done:'Smelted trade goods. +7 Gold, +14 Smithing XP.'});closePanel()};
+
+            const oldOpenPanel=openPanel;
+            openPanel=function(kind){
+              ui.overlay.classList.add('show');
+              if(kind==='inventory'){ui.modalTitle.textContent='🎒 Inventory';ui.modalHint.textContent='Real carried item stacks.';ui.modalBody.innerHTML=inventoryHTML();return}
+              if(kind==='skills'){ui.modalTitle.textContent='⚡ Skills';ui.modalHint.textContent='Real XP and levels.';ui.modalBody.innerHTML=skillsHTML();return}
+              if(kind==='equipment'){ui.modalTitle.textContent='🛡️ Equipment';ui.modalHint.textContent='Gear affects combat.';ui.modalBody.innerHTML=equipmentHTML();return}
+              if(kind==='bank'){ui.modalTitle.textContent='🏦 Bank';ui.modalHint.textContent='Deposit and withdraw partial stacks.';ui.modalBody.innerHTML=bankHTML();return}
+              if(kind==='shop'){ui.modalTitle.textContent='🏪 Shop';ui.modalHint.textContent='Buy upgrades and sell partial stacks.';ui.modalBody.innerHTML=shopHTML();return}
+              if(kind==='smithy'){ui.modalTitle.textContent='⚒️ Smithy';ui.modalHint.textContent='Prototype crafting station.';ui.modalBody.innerHTML=smithyHTML();return}
+              oldOpenPanel(kind);
+            };
+
+            const actionCluster=document.querySelector('.actionCluster');
+            if(actionCluster&&!document.getElementById('equipBtn')){
+              const b=document.createElement('button');b.className='btn';b.id='equipBtn';b.textContent='Equipment';b.onclick=()=>openPanel('equipment');actionCluster.appendChild(b);
+            }
+            const oldReset=reset;reset=function(){if(confirm('Reset 2.5D V6 RPG systems?')){localStorage.removeItem(SAVE);location.reload()}};const resetBtn=document.getElementById('resetBtn');if(resetBtn)resetBtn.onclick=reset;
+            used();saveV6();addLog('V6 RPG systems loaded: inventory, timed actions, bank, shop, gear, and combat.');
+          }
+        `);
+      }catch(e){console.warn('V6 RPG patch failed',e);}
+    }
+
+    v6Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>70)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
