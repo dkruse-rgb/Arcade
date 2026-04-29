@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Skillscape 2.5D V32</title>
+<style>
+html,body{margin:0;min-height:100%;background:#020617;color:#e5e7eb;font-family:system-ui,Arial,sans-serif} .wrap{padding:1rem;max-width:760px;margin:auto}a{color:#38bdf8;font-weight:900}.card{background:#0f172a;border:1px solid #ffffff22;border-radius:18px;padding:1rem;margin:1rem 0}iframe{width:100%;height:100dvh;border:0;display:block}
+</style>
+</head>
+<body>
+<iframe src="skillscape-2-5d-v31.html?v=v32-ghost-object-cleanup" id="f"></iframe>
+<script>
+const f=document.getElementById('f');
+function patch(){
+ let w,d;try{w=f.contentWindow;d=f.contentDocument;if(!w||!d)return}catch(e){return}
+ try{w.eval(`
+ if(!window.__v32GhostCleanup){
+  window.__v32GhostCleanup=true;
+  try{ if(typeof anim!=='undefined'&&anim.footprints)anim.footprints.length=0; }catch(e){}
+  drawFootprints=function(){};
+  function rockProp(e){let p=cen(e,.2),isCopper=e.res==='copperOre',base=isCopper?'#9a3412':'#475569',hi=isCopper?'#f59e0b':'#cbd5e1';ctx.save();ctx.globalAlpha=1;ell(p.x,p.y+16,25,8,'#0006');poly([{x:p.x-25,y:p.y+8},{x:p.x-12,y:p.y-12},{x:p.x+14,y:p.y-16},{x:p.x+27,y:p.y+2},{x:p.x+10,y:p.y+18},{x:p.x-18,y:p.y+16}],base,'#ffffff22');ctx.strokeStyle=hi;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-10,p.y+1);ctx.lineTo(p.x,p.y-8);ctx.moveTo(p.x+8,p.y+6);ctx.lineTo(p.x+17,p.y-3);ctx.stroke();ctx.restore()}
+  function pondProp(e){poly([scr(e.x,e.y),scr(e.x+2,e.y),scr(e.x+2,e.y+2),scr(e.x,e.y+2)],'#075985','#7dd3fc66');let p=cen(e);ctx.save();ctx.globalAlpha=1;ctx.strokeStyle='#bae6fd';ctx.lineWidth=2;for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(p.x-22,p.y+i*8);ctx.quadraticCurveTo(p.x,p.y-6+i*8,p.x+22,p.y+i*8);ctx.stroke()}ctx.restore()}
+  function buildingProp(e){let p=cen(e),top=cen(e,1.1),color=e.id==='bank'?'#2563eb':e.id==='shop'?'#d97706':e.id==='smithy'?'#475569':'#c2410c',wall=e.id==='bank'?'#dbeafe':e.id==='shop'?'#fde68a':e.id==='smithy'?'#94a3b8':'#fed7aa';ctx.save();ctx.globalAlpha=1;ell(p.x,p.y+14,42,12,'#0006');let b=[scr(e.x,e.y),scr(e.x+e.w,e.y),scr(e.x+e.w,e.y+e.h),scr(e.x,e.y+e.h)],t=[scr(e.x,e.y,.8),scr(e.x+e.w,e.y,.8),scr(e.x+e.w,e.y+e.h,.8),scr(e.x,e.y+e.h,.8)];poly([b[1],b[2],t[2],t[1]],wall,'#ffffff22');poly([b[2],b[3],t[3],t[2]],'#c7a66e','#ffffff18');poly(t,color,'#ffffff33');ctx.fillStyle='#3f1f12';ctx.beginPath();ctx.roundRect(p.x-9,p.y-20,18,26,4);ctx.fill();ctx.fillStyle='#020617cc';ctx.beginPath();ctx.roundRect(top.x-17,top.y-22,34,30,8);ctx.fill();ctx.font='20px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.icon,top.x,top.y-7);ctx.restore()}
+  drawEnt=function(e){ctx.globalAlpha=1;let p=cen(e);if(e.kind==='building'||e.kind==='station'){buildingProp(e);return}if(e.kind==='quest'||e.kind==='npc'){drawNpc(e);return}if(e.kind==='res'&&e.res==='logs'){ell(p.x,p.y+10,22,7,'#0005');let t=cen(e,1.5);ctx.strokeStyle='#7c2d12';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(t.x,t.y+18);ctx.stroke();ell(t.x,t.y,28,20,'#166534');ell(t.x-14,t.y+9,18,13,'#15803d');ell(t.x+14,t.y+9,18,13,'#14532d');return}if(e.kind==='res'&&e.res==='rawFish'){pondProp(e);return}if(e.kind==='res'&&(e.res==='copperOre'||e.res==='ironOre')){rockProp(e);return}if(e.kind==='travel'){ctx.save();ctx.globalAlpha=1;ell(p.x,p.y+8,24,8,'#0006');ctx.strokeStyle='#c084fc';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(p.x,p.y,25,12,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#581c87';ctx.beginPath();ctx.ellipse(p.x,p.y,18,8,0,0,Math.PI*2);ctx.fill();ctx.font='20px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.icon||'⛰️',p.x,p.y-18);ctx.restore();return}ell(p.x,p.y+10,20,7,'#0006');ctx.fillStyle=e.enemy==='goblin'?'#166534':'#8b5e34';ctx.beginPath();ctx.arc(p.x,p.y-8,14,0,Math.PI*2);ctx.fill();ctx.font='18px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.icon||'?',p.x,p.y-8)};
+  if(typeof log==='function')log('V32 loaded: ghost icons and footprint artifacts removed.');
+ }
+ `)}catch(e){console.warn('V32 patch failed',e)}
+}
+f.addEventListener('load',()=>{patch();let n=0,t=setInterval(()=>{patch();if(++n>30)clearInterval(t)},250)});
+</script>
+</body>
+</html>
