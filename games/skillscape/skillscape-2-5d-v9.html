@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V9</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v9Frame" src="skillscape-2-5d-v8.html?v=compact-action-bar-1" title="Skillscape 2.5D Prototype V9"></iframe>
+  <script>
+    const v9Frame=document.getElementById('v9Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>14)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        const frames=[...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v9Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v9CompactHudStyle')){
+        const style=d.createElement('style');
+        style.id='v9CompactHudStyle';
+        style.textContent=`
+          html,body{overflow-x:hidden!important;overflow-y:auto!important;max-width:100%!important}
+          .canvasWrap{
+            height:min(64vh,640px)!important;
+            min-height:390px!important;
+            max-height:calc(100svh - 235px)!important;
+          }
+          .controls{
+            left:.45rem!important;
+            right:.45rem!important;
+            bottom:calc(.75rem + env(safe-area-inset-bottom))!important;
+            align-items:flex-end!important;
+            z-index:30!important;
+            pointer-events:none!important;
+          }
+          .pad{
+            pointer-events:auto!important;
+            grid-template-columns:repeat(3,41px)!important;
+            gap:.28rem!important;
+            transform:none!important;
+          }
+          .pad button{
+            min-height:39px!important;
+            border-radius:13px!important;
+            background:rgba(15,23,42,.72)!important;
+            border:1px solid rgba(255,255,255,.22)!important;
+            backdrop-filter:blur(4px)!important;
+          }
+          .actionCluster{
+            pointer-events:auto!important;
+            position:absolute!important;
+            left:calc(130px + .4rem)!important;
+            right:0!important;
+            bottom:0!important;
+            width:auto!important;
+            transform:none!important;
+            display:grid!important;
+            grid-template-columns:repeat(4,minmax(0,1fr))!important;
+            gap:.28rem!important;
+            align-items:end!important;
+          }
+          .actionCluster button{
+            width:100%!important;
+            min-height:34px!important;
+            padding:.36rem .22rem!important;
+            font-size:.68rem!important;
+            line-height:1.05!important;
+            border-radius:14px!important;
+            background:rgba(15,23,42,.68)!important;
+            border:1px solid rgba(255,255,255,.18)!important;
+            backdrop-filter:blur(4px)!important;
+            overflow:hidden!important;
+            text-overflow:ellipsis!important;
+            white-space:nowrap!important;
+          }
+          #useBtn{
+            grid-column:1 / -1!important;
+            min-height:43px!important;
+            font-size:.92rem!important;
+            font-weight:900!important;
+            border-radius:999px!important;
+            background:linear-gradient(90deg,#38bdf8,#22c55e)!important;
+            color:#02111f!important;
+          }
+          #invBtn::before{content:'🎒 ';}
+          #skillsBtn::before{content:'⚡ ';}
+          #equipBtn::before{content:'🛡️ ';}
+          #logBtn::before{content:'☠️ ';}
+          .rpgProgress{bottom:calc(5.9rem + env(safe-area-inset-bottom))!important;left:.5rem!important;right:.5rem!important;z-index:14!important}
+          .hudTop{z-index:25!important;max-width:calc(100% - 7.5rem)!important}
+          .v7CameraDock{z-index:28!important;top:2.5rem!important;right:.45rem!important}
+          .v7CameraDock button,.v7CameraDock span{font-size:.72rem!important;padding:.32rem .44rem!important}
+          @media(max-width:520px){
+            .canvasWrap{
+              height:60vh!important;
+              min-height:365px!important;
+              max-height:calc(100svh - 250px)!important;
+            }
+            .controls{
+              bottom:calc(.7rem + env(safe-area-inset-bottom))!important;
+            }
+            .pad{
+              grid-template-columns:repeat(3,38px)!important;
+              gap:.26rem!important;
+            }
+            .pad button{min-height:36px!important;border-radius:12px!important}
+            .actionCluster{
+              left:calc(118px + .35rem)!important;
+              gap:.24rem!important;
+            }
+            .actionCluster button{
+              font-size:.62rem!important;
+              min-height:31px!important;
+              padding:.32rem .16rem!important;
+            }
+            #useBtn{
+              min-height:39px!important;
+              font-size:.84rem!important;
+            }
+            .rpgProgress{bottom:calc(5.35rem + env(safe-area-inset-bottom))!important}
+          }
+          @media(max-width:390px){
+            .canvasWrap{
+              height:58vh!important;
+              min-height:345px!important;
+              max-height:calc(100svh - 260px)!important;
+            }
+            .pad{grid-template-columns:repeat(3,35px)!important;gap:.23rem!important}
+            .pad button{min-height:34px!important}
+            .actionCluster{left:calc(108px + .3rem)!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+            #useBtn{grid-column:1 / -1!important;min-height:38px!important}
+            .actionCluster button{font-size:.64rem!important;min-height:30px!important}
+            .rpgProgress{bottom:calc(6.2rem + env(safe-area-inset-bottom))!important}
+          }
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v9CompactActionBar){
+            window.__v9CompactActionBar=true;
+            const names={invBtn:'Bag',skillsBtn:'Skills',equipBtn:'Gear',logBtn:'Log'};
+            Object.entries(names).forEach(([id,text])=>{
+              const b=document.getElementById(id);
+              if(b)b.textContent=text;
+            });
+
+            // Shift the visual center a hair upward so the player is less often hidden by the lower HUD.
+            const oldScreen=screen;
+            screen=function(x,y,z=0){
+              const p=oldScreen(x,y,z);
+              p.y-=28;
+              return p;
+            };
+
+            if(typeof resize==='function')setTimeout(resize,100);
+            addLog('V9 compact action bar loaded. More world, less button wall.');
+          }
+        `);
+      }catch(e){console.warn('V9 compact HUD patch failed',e);}
+    }
+
+    v9Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>90)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
