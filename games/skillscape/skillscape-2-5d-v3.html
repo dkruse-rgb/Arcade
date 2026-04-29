@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V3</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="skillscape-2-5d.html?v=camera-rotate-1" title="Skillscape 2.5D Prototype V3"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+
+    function patch(){
+      let d,w;
+      try{ d=frame.contentDocument; w=frame.contentWindow; }catch(e){ return; }
+      if(!d||!w)return;
+
+      if(!d.getElementById('cameraV3Style')){
+        const style=d.createElement('style');
+        style.id='cameraV3Style';
+        style.textContent=`
+          .pad button{touch-action:none!important;user-select:none!important;-webkit-user-select:none!important}
+          .actionCluster button{touch-action:manipulation!important}
+          .cameraControls{position:absolute;right:.75rem;top:3.35rem;display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;justify-content:flex-end;z-index:6;pointer-events:auto}
+          .cameraControls button,.cameraControls span{border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(2,6,23,.78);color:#e5e7eb;padding:.38rem .55rem;font:inherit;font-size:.82rem;box-shadow:0 8px 20px rgba(0,0,0,.28)}
+          .cameraControls button{cursor:pointer}.cameraControls span{color:#cbd5e1}
+          @media(max-width:520px){.cameraControls{top:3rem;right:.45rem}.cameraControls button,.cameraControls span{font-size:.74rem;padding:.32rem .45rem}}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__cameraRotateV3){
+            window.__cameraRotateV3=true;
+            const SAFE_SPAWN={x:10.2,y:12.2};
+            const CAMERA_LABELS=['NE','SE','SW','NW'];
+            window.cameraIndex=state.cameraIndex||0;
+
+            const wrap=document.getElementById('canvasWrap');
+            const cameraControls=document.createElement('div');
+            cameraControls.className='cameraControls';
+            cameraControls.innerHTML='<button id="camLeftBtn">↶</button><span id="camLabel">Camera NE</span><button id="camRightBtn">↷</button><button id="camResetBtn">Reset</button>';
+            wrap.appendChild(cameraControls);
+            const camLabel=document.getElementById('camLabel');
+
+            function saveCamera(){
+              state.cameraIndex=window.cameraIndex;
+              localStorage.setItem(SAVE,JSON.stringify(state));
+            }
+            function refreshCameraLabel(){
+              camLabel.textContent='Camera '+CAMERA_LABELS[window.cameraIndex];
+            }
+            window.rotateCamera=function(step){
+              window.cameraIndex=(window.cameraIndex+step+4)%4;
+              saveCamera();
+              refreshCameraLabel();
+              addLog('Camera rotated to '+CAMERA_LABELS[window.cameraIndex]+'.');
+            };
+            window.resetCamera=function(){
+              window.cameraIndex=0;
+              saveCamera();
+              refreshCameraLabel();
+              addLog('Camera reset to NE.');
+            };
+
+            document.getElementById('camLeftBtn').onclick=()=>rotateCamera(-1);
+            document.getElementById('camRightBtn').onclick=()=>rotateCamera(1);
+            document.getElementById('camResetBtn').onclick=resetCamera;
+            refreshCameraLabel();
+
+            function rotateLocal(dx,dy){
+              if(window.cameraIndex===0) return [dx,dy];
+              if(window.cameraIndex===1) return [dy,-dx];
+              if(window.cameraIndex===2) return [-dx,-dy];
+              return [-dy,dx];
+            }
+            function inverseRotateInput(dx,dy){
+              if(window.cameraIndex===0) return [dx,dy];
+              if(window.cameraIndex===1) return [-dy,dx];
+              if(window.cameraIndex===2) return [-dx,-dy];
+              return [dy,-dx];
+            }
+
+            screen=function(x,y,z=0){
+              const lx=x-state.player.x;
+              const ly=y-state.player.y;
+              const r=rotateLocal(lx,ly);
+              const px=(r[0]-r[1])*tileW/2;
+              const py=(r[0]+r[1])*tileH/2-z*28;
+              return {x:px+canvas.clientWidth/2,y:py+canvas.clientHeight/2+40};
+            };
+
+            window.unstickPlayer=function(reason='Moved to safe spawn.'){
+              state.player={x:SAFE_SPAWN.x,y:SAFE_SPAWN.y};
+              ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].forEach(k=>keys[k]=false);
+              localStorage.setItem(SAVE,JSON.stringify(state));
+              addLog(reason);
+              renderHUD();
+            };
+            if(!canMove(state.player.x,state.player.y)){
+              unstickPlayer('V3 moved you out of collision to a safe spawn.');
+            }
+
+            update=function(dt){
+              if(!canMove(state.player.x,state.player.y)){
+                unstickPlayer('Unstuck: collision trap detected.');
+                return;
+              }
+              let dx=0,dy=0;
+              if(keys.ArrowUp||keys.w)dy-=1;
+              if(keys.ArrowDown||keys.s)dy+=1;
+              if(keys.ArrowLeft||keys.a)dx-=1;
+              if(keys.ArrowRight||keys.d)dx+=1;
+              if(dx||dy){
+                const mag=Math.hypot(dx,dy);
+                dx/=mag;dy/=mag;
+                const mapped=inverseRotateInput(dx,dy);
+                const speed=3.1*dt;
+                const nx=state.player.x+mapped[0]*speed;
+                const ny=state.player.y+mapped[1]*speed;
+                if(canMove(nx,state.player.y))state.player.x=nx;
+                if(canMove(state.player.x,ny))state.player.y=ny;
+                renderHUD(false);
+              }
+            };
+
+            window.tapMove=function(dir){
+              const map={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'};
+              const k=map[dir];
+              if(!k)return;
+              keys[k]=true;
+              for(let i=0;i<12;i++) update(1/60);
+              keys[k]=false;
+              renderHUD(false);
+            };
+
+            document.querySelectorAll('[data-dir]').forEach(btn=>{
+              if(btn.__cameraMoveBound)return;
+              btn.__cameraMoveBound=true;
+              const dir=btn.dataset.dir;
+              const map={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'};
+              const k=map[dir];
+              btn.addEventListener('touchstart',e=>{e.preventDefault();keys[k]=true;},{passive:false});
+              btn.addEventListener('touchend',e=>{e.preventDefault();keys[k]=false;tapMove(dir);},{passive:false});
+              btn.addEventListener('click',e=>{e.preventDefault();tapMove(dir);});
+            });
+
+            reset=function(){
+              if(confirm('Reset 2.5D prototype V3?')){
+                localStorage.removeItem(SAVE);
+                state.gold=60;state.hp=30;state.maxHp=30;state.bag=0;state.bagMax=20;
+                state.player={x:SAFE_SPAWN.x,y:SAFE_SPAWN.y};
+                state.cameraIndex=0;
+                state.log=['2.5D V3 loaded with camera rotation.'];
+                localStorage.setItem(SAVE,JSON.stringify(state));
+                location.reload();
+              }
+            };
+            const resetBtn=document.getElementById('resetBtn');
+            if(resetBtn)resetBtn.onclick=reset;
+
+            addLog('V3 camera controls loaded: rotate left, rotate right, and reset.');
+          }
+        `);
+      }catch(e){
+        console.warn('2.5D V3 camera patch failed',e);
+      }
+    }
+
+    frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{
+        patch();
+        ticks++;
+        if(ticks>40)clearInterval(t);
+      },250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
