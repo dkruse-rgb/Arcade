@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skillscape Overlay Build</title>
+  <style>
+    html,body{margin:0;height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="interiors-build-v2.html" title="Skillscape Overlay Build"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+    frame.addEventListener('load',()=>{
+      const d=frame.contentDocument;
+      if(!d||d.getElementById('skillscapeOverlayPatch'))return;
+
+      const style=d.createElement('style');
+      style.id='skillscapeOverlayPatch';
+      style.textContent=`
+        .overlay-hidden-panel{display:none!important}
+        .overlay-launch-row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.65rem 0}
+        .overlay-launch-row button{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:.65rem .9rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);color:inherit;font:inherit;font-weight:700}
+        .overlay-launch-row .primary{background:linear-gradient(90deg,#38bdf8,#22c55e);color:#02111f}
+        .skillscape-modal-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,.76);backdrop-filter:blur(5px);display:none;align-items:flex-end;justify-content:center;padding:1rem}
+        .skillscape-modal-backdrop.show{display:flex}
+        .skillscape-modal{width:min(100%,640px);max-height:86vh;overflow:auto;background:rgba(15,23,42,.97);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:1rem;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+        .skillscape-modal-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem}
+        .skillscape-modal-head h2{margin:.1rem 0;font-size:1.35rem}
+        .skillscape-modal-head p{margin:.2rem 0 0;color:#94a3b8;font-size:.9rem}
+        .skillscape-modal-close{border:0;border-radius:999px;background:rgba(255,255,255,.1);color:inherit;padding:.55rem .8rem;font:inherit;cursor:pointer}
+        @media(min-width:900px){.skillscape-modal-backdrop{align-items:center}}
+      `;
+      d.head.appendChild(style);
+
+      const sectionByTitle=(word)=>[...d.querySelectorAll('section.panel')].find(s=>(s.querySelector('h2')?.textContent||'').includes(word));
+      const bankPanel=sectionByTitle('Bank');
+      const shopPanel=sectionByTitle('Shop');
+      const invPanel=sectionByTitle('Inventory');
+      if(!bankPanel||!shopPanel||!invPanel)return;
+
+      [bankPanel,shopPanel,invPanel].forEach(p=>p.classList.add('overlay-hidden-panel'));
+
+      const row=d.createElement('div');
+      row.className='overlay-launch-row';
+      row.innerHTML=`
+        <button class="primary" id="overlayInventoryBtn">🎒 Inventory</button>
+        <button id="overlayBankBtn" hidden>🏦 Bank</button>
+        <button id="overlayShopBtn" hidden>🏪 Shop</button>
+      `;
+      const near=d.getElementById('near')||d.querySelector('.chips');
+      near?.insertAdjacentElement('afterend',row);
+
+      const backdrop=d.createElement('div');
+      backdrop.className='skillscape-modal-backdrop';
+      backdrop.innerHTML=`
+        <div class="skillscape-modal" onclick="event.stopPropagation()">
+          <div class="skillscape-modal-head">
+            <div><h2 id="overlayTitle">Panel</h2><p id="overlayHint"></p></div>
+            <button class="skillscape-modal-close" id="overlayCloseBtn">✕</button>
+          </div>
+          <div id="overlayContent"></div>
+        </div>
+      `;
+      d.body.appendChild(backdrop);
+
+      const title=d.getElementById('overlayTitle');
+      const hint=d.getElementById('overlayHint');
+      const content=d.getElementById('overlayContent');
+      const bankBtn=d.getElementById('overlayBankBtn');
+      const shopBtn=d.getElementById('overlayShopBtn');
+      const invBtn=d.getElementById('overlayInventoryBtn');
+      let active=null;
+
+      function closeOverlay(){
+        if(active)active.classList.add('overlay-hidden-panel');
+        active=null;
+        backdrop.classList.remove('show');
+      }
+      function openOverlay(kind,panel){
+        if(active)active.classList.add('overlay-hidden-panel');
+        active=panel;
+        content.innerHTML='';
+        content.appendChild(panel);
+        panel.classList.remove('overlay-hidden-panel');
+        if(kind==='inventory'){
+          title.textContent='🎒 Inventory';
+          hint.textContent='Your backpack, food, and bank deposit shortcuts.';
+        }
+        if(kind==='bank'){
+          title.textContent='🏦 Bank';
+          hint.textContent='Only opens while you are at the bank counter.';
+        }
+        if(kind==='shop'){
+          title.textContent='🏪 Shop';
+          hint.textContent='Only opens while you are at the merchant counter.';
+        }
+        backdrop.classList.add('show');
+      }
+      function syncButtons(){
+        const zone=(d.getElementById('zoneName')?.textContent||'').trim();
+        const bankStatus=(d.getElementById('bankStatus')?.textContent||'');
+        const bankOpen=bankStatus.includes('Bank open')||zone==='Bank';
+        const shopOpen=zone==='Shop';
+        bankBtn.hidden=!bankOpen;
+        shopBtn.hidden=!shopOpen;
+        if(active===bankPanel&&!bankOpen)closeOverlay();
+        if(active===shopPanel&&!shopOpen)closeOverlay();
+      }
+
+      invBtn.onclick=()=>openOverlay('inventory',invPanel);
+      bankBtn.onclick=()=>openOverlay('bank',bankPanel);
+      shopBtn.onclick=()=>openOverlay('shop',shopPanel);
+      d.getElementById('overlayCloseBtn').onclick=closeOverlay;
+      backdrop.onclick=e=>{if(e.target===backdrop)closeOverlay();};
+      d.addEventListener('keydown',e=>{if(e.key==='Escape')closeOverlay();});
+      setInterval(syncButtons,350);
+      syncButtons();
+    });
+  </script>
+</body>
+</html>
