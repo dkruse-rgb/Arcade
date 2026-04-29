@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comic Shop | Arcade of Dustin</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070716;--panel:#121225;--panel2:#1b1b33;--text:#f8fafc;--muted:#a5b4fc;--gold:#facc15;--pink:#fb7185;--blue:#38bdf8;--green:#22c55e}*{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial,sans-serif;background:radial-gradient(circle at 20% 0%,#fb718533,transparent 28rem),radial-gradient(circle at 80% 8%,#38bdf833,transparent 30rem),#070716;color:var(--text)}button,a{font:inherit}.wrap{width:min(1160px,100%);margin:auto;padding:1rem}.hero{border:1px solid #ffffff18;border-radius:28px;padding:1.2rem;background:linear-gradient(135deg,#312e81cc,#121225e6 55%,#7f1d1dcc);box-shadow:0 22px 70px #0008}.top{display:flex;gap:1rem;justify-content:space-between;align-items:center;flex-wrap:wrap}h1{margin:.1rem 0;font-size:clamp(2.4rem,9vw,5rem);line-height:.9;letter-spacing:-.06em}.tag{color:#dbeafe;max-width:46rem;line-height:1.45}.nav{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}.btn,.nav a{border:1px solid #ffffff22;background:#ffffff12;color:var(--text);border-radius:999px;padding:.72rem .95rem;text-decoration:none;font-weight:800}.btn.primary{background:linear-gradient(90deg,var(--blue),var(--pink));color:#020617}.btn.good{background:linear-gradient(90deg,var(--green),var(--gold));color:#061006}.stats{display:grid;grid-template-columns:repeat(3,minmax(88px,1fr));gap:.55rem;min-width:min(100%,360px)}.stat{background:#0005;border:1px solid #ffffff16;border-radius:18px;padding:.8rem;text-align:center}.stat b{display:block;font-size:1.35rem}.stat span{color:var(--muted);font-size:.78rem}.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:1rem;margin-top:1rem}.panel{background:#121225e6;border:1px solid #ffffff16;border-radius:24px;padding:1rem;box-shadow:0 14px 40px #0006}.panel h2{margin:0 0 .75rem}.shop-view{min-height:330px;border-radius:22px;border:1px solid #ffffff14;background:linear-gradient(#2e1065aa,#0f172aaa),repeating-linear-gradient(90deg,#ffffff10 0 2px,transparent 2px 58px);padding:1rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;align-items:end}.shelf{height:90px;border-radius:16px;background:linear-gradient(180deg,#78350f,#451a03);border:1px solid #f59e0b55;display:flex;align-items:flex-end;justify-content:center;padding:.4rem;box-shadow:inset 0 10px 18px #0005}.comic{width:38px;height:58px;border-radius:5px;border:2px solid #fff;background:linear-gradient(135deg,#fb7185 0 45%,#38bdf8 45%);box-shadow:8px 0 0 #facc15,16px 0 0 #22c55e}.counter{grid-column:1/-1;height:76px;border-radius:18px;background:linear-gradient(180deg,#a16207,#451a03);border:1px solid #f59e0b77;display:flex;align-items:center;justify-content:center;font-size:2rem}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-top:.8rem}.action{border:1px solid #ffffff18;background:#1b1b33;border-radius:18px;padding:.85rem;text-align:left;color:var(--text)}.action:hover{filter:brightness(1.15)}.action b{display:block}.action small{color:var(--muted)}.cards{display:grid;gap:.55rem}.card{background:#1b1b33;border:1px solid #ffffff14;border-radius:18px;padding:.8rem}.card .row{display:flex;justify-content:space-between;gap:.8rem;align-items:center}.price{color:var(--gold);font-weight:900}.log{max-height:235px;overflow:auto}.log div{padding:.55rem;border-radius:14px;background:#0004;margin:.35rem 0;color:#dbeafe}.progress{height:12px;border-radius:999px;background:#0007;overflow:hidden;margin-top:.65rem}.bar{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--pink),var(--gold));transition:width .12s}.inventory{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}.item{background:#0004;border:1px solid #ffffff12;border-radius:16px;padding:.65rem}.item b{display:block}.item span{color:var(--muted);font-size:.85rem}@media(max-width:860px){.grid{grid-template-columns:1fr}.shop-view{grid-template-columns:repeat(2,1fr)}.actions{grid-template-columns:1fr}.stats{width:100%}}  
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="top">
+        <div>
+          <h1>Comic Shop</h1>
+          <p class="tag">Build a tiny comic empire. Buy back issues, grade rare books, sell pulls, upgrade your shelves, and save your progress right in the browser.</p>
+          <div class="nav"><a href="../../index.html">← Back to Arcade</a><button class="btn" id="saveBtn">Save</button><button class="btn" id="resetBtn">Reset</button></div>
+        </div>
+        <div class="stats"><div class="stat"><b id="cash">$0</b><span>Cash</span></div><div class="stat"><b id="fans">0</b><span>Fans</span></div><div class="stat"><b id="rank">1</b><span>Shop Rank</span></div></div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <main>
+        <section class="panel">
+          <h2>🏪 The Shop Floor</h2>
+          <div class="shop-view" id="shopView"></div>
+          <div class="progress"><div class="bar" id="bar"></div></div>
+          <div class="actions">
+            <button class="action" data-act="dig"><b>Dig through dollar bins</b><small>Find random back issues.</small></button>
+            <button class="action" data-act="sell"><b>Sell comics</b><small>Turn inventory into cash and fans.</small></button>
+            <button class="action" data-act="grade"><b>Grade rare books</b><small>Convert rare finds into premium slabs.</small></button>
+            <button class="action" data-act="event"><b>Host signing event</b><small>Spend cash to gain fans.</small></button>
+          </div>
+        </section>
+        <section class="panel" style="margin-top:1rem">
+          <h2>📦 Inventory</h2>
+          <div class="inventory" id="inventory"></div>
+        </section>
+      </main>
+
+      <aside class="cards">
+        <section class="panel"><h2>⬆️ Upgrades</h2><div id="upgrades"></div></section>
+        <section class="panel"><h2>🧾 Log</h2><div class="log" id="log"></div></section>
+      </aside>
+    </div>
+  </div>
+
+<script>
+const SAVE='comic_shop_arcade_v1';
+const start={cash:75,fans:0,rank:1,inv:{backIssues:0,rareBooks:0,slabs:0},up:{shelves:1,bins:1,grader:0,events:0},log:['Welcome to Comic Shop. First rule: bag and board everything.']};
+let game=load(),busy=false;
+function load(){try{return {...start,...JSON.parse(localStorage.getItem(SAVE)||'{}'),inv:{...start.inv,...(JSON.parse(localStorage.getItem(SAVE)||'{}').inv||{})},up:{...start.up,...(JSON.parse(localStorage.getItem(SAVE)||'{}').up||{})}}}catch{return JSON.parse(JSON.stringify(start))}}
+function save(){localStorage.setItem(SAVE,JSON.stringify(game))}
+function money(n){return '$'+Math.floor(n).toLocaleString()}
+function addLog(t){game.log=[t,...game.log].slice(0,12)}
+function rank(){return 1+Math.floor((game.fans+game.up.shelves*8+game.up.events*5)/25)}
+function work(seconds,done){if(busy)return;busy=true;let startTime=Date.now();let timer=setInterval(()=>{let p=Math.min(100,(Date.now()-startTime)/(seconds*10));document.getElementById('bar').style.width=p+'%';if(p>=100){clearInterval(timer);document.getElementById('bar').style.width='0%';busy=false;done();game.rank=rank();save();render()}},70)}
+function action(type){if(type==='dig')work(Math.max(45,110-game.up.bins*15),()=>{let found=1+game.up.bins+Math.floor(Math.random()*game.up.shelves);game.inv.backIssues+=found;if(Math.random()<.18+.04*game.up.bins){game.inv.rareBooks++;addLog('You found '+found+' back issues and a rare key issue. Jackpot energy.')}else addLog('You found '+found+' back issues in the dollar bins.')});
+if(type==='sell')work(75,()=>{let q=game.inv.backIssues;if(q<=0){addLog('No back issues to sell. Go dig first.');return}let sell=Math.min(q,3+game.up.shelves*2);game.inv.backIssues-=sell;let cash=sell*(4+game.up.shelves);game.cash+=cash;game.fans+=Math.max(1,Math.floor(sell/2));addLog('Sold '+sell+' comics for '+money(cash)+'.')});
+if(type==='grade')work(Math.max(80,140-game.up.grader*25),()=>{if(game.inv.rareBooks<=0){addLog('No rare books to grade.');return}game.inv.rareBooks--;game.inv.slabs++;addLog('A rare book came back graded and slabbed.')});
+if(type==='event')work(95,()=>{let cost=35+game.up.events*20;if(game.cash<cost){addLog('You need '+money(cost)+' to host a signing.');return}game.cash-=cost;let fans=10+game.up.events*6+Math.floor(Math.random()*8);game.fans+=fans;addLog('Signing event brought in '+fans+' new fans.')})}
+const upgradeList=[['More Shelves','shelves',90,'Sell more books and boost price.'],['Better Dollar Bins','bins',120,'Find more comics faster.'],['Trusted Grader','grader',150,'Grade rare books faster.'],['Event Hype','events',175,'Signing events bring more fans.']];
+function buy(i){let [name,key,base]=upgradeList[i],lvl=game.up[key]||0,cost=base*(lvl+1);if(game.cash<cost){addLog('Need '+money(cost)+' for '+name+'.');render();return}game.cash-=cost;game.up[key]=lvl+1;addLog('Bought upgrade: '+name+' level '+game.up[key]+'.');game.rank=rank();save();render()}
+function reset(){if(confirm('Reset Comic Shop progress?')){localStorage.removeItem(SAVE);game=JSON.parse(JSON.stringify(start));render()}}
+function render(){document.getElementById('cash').textContent=money(game.cash);document.getElementById('fans').textContent=game.fans;document.getElementById('rank').textContent=game.rank;document.getElementById('shopView').innerHTML='<div class="shelf"><div class="comic"></div></div>'.repeat(Math.min(7,2+game.up.shelves))+'<div class="counter">🧑‍💼 💬 🦸</div>';document.getElementById('inventory').innerHTML=Object.entries(game.inv).map(([k,v])=>`<div class="item"><b>${k.replace(/[A-Z]/g,' $&').replace(/^./,c=>c.toUpperCase())}</b><span>${v}</span></div>`).join('');document.getElementById('upgrades').innerHTML=upgradeList.map((u,i)=>{let lvl=game.up[u[1]]||0,cost=u[2]*(lvl+1);return `<div class="card"><div class="row"><div><b>${u[0]} Lv ${lvl}</b><p style="color:var(--muted);margin:.25rem 0 0">${u[3]}</p><span class="price">${money(cost)}</span></div><button class="btn good" onclick="buy(${i})">Buy</button></div></div>`}).join('');document.getElementById('log').innerHTML=game.log.map(l=>'<div>'+l+'</div>').join('')}
+document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>action(b.dataset.act));document.getElementById('saveBtn').onclick=()=>{save();addLog('Game saved.');render()};document.getElementById('resetBtn').onclick=reset;window.buy=buy;render();
+</script>
+</body>
+</html>
