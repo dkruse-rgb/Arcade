@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V13</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:auto}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v13Frame" src="skillscape-2-5d-v12.html?v=quest-system-1" title="Skillscape 2.5D Prototype V13"></iframe>
+  <script>
+    const v13Frame=document.getElementById('v13Frame');
+
+    function collectDocs(doc, out=[], depth=0){
+      if(!doc||depth>20)return out;
+      try{
+        out.push(doc);
+        [...doc.querySelectorAll('iframe')].forEach(f=>collectDocs(f.contentDocument,out,depth+1));
+      }catch(e){}
+      return out;
+    }
+
+    function findGame(doc, depth=0){
+      if(!doc||depth>20)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        for(const f of [...doc.querySelectorAll('iframe')]){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function getGame(){
+      try{return findGame(v13Frame.contentDocument)}catch(e){return null}
+    }
+
+    function addQuestButton(){
+      let docs=[];
+      try{docs=collectDocs(v13Frame.contentDocument)}catch(e){return}
+      docs.forEach(d=>{
+        try{
+          const grid=d.querySelector('.actionGrid');
+          if(!grid||d.getElementById('v13QuestOuterBtn'))return;
+          if(!d.getElementById('v13QuestOuterStyle')){
+            const style=d.createElement('style');
+            style.id='v13QuestOuterStyle';
+            style.textContent=`
+              .actionGrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+              #v13QuestOuterBtn::before{content:'📜 ';}
+              @media(max-width:520px){.actionGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+              @media(max-width:390px){.actionGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+            `;
+            d.head.appendChild(style);
+          }
+          const btn=d.createElement('button');
+          btn.id='v13QuestOuterBtn';
+          btn.textContent='Quests';
+          btn.addEventListener('click',()=>{
+            const hit=getGame();
+            if(hit&&hit.win&&hit.win.openPanel)hit.win.openPanel('quests');
+          });
+          grid.appendChild(btn);
+        }catch(e){}
+      });
+    }
+
+    function patch(){
+      addQuestButton();
+      const hit=getGame();
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v13QuestStyle')){
+        const style=d.createElement('style');
+        style.id='v13QuestStyle';
+        style.textContent=`
+          .questCard{background:rgba(30,41,59,.82);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:.85rem;margin:.55rem 0}
+          .questCard.ready{border-color:rgba(34,197,94,.55);box-shadow:0 0 0 2px rgba(34,197,94,.12)}
+          .questCard.complete{opacity:.72;background:rgba(34,197,94,.14)}
+          .questTop{display:flex;justify-content:space-between;gap:.65rem;align-items:flex-start;flex-wrap:wrap}
+          .questTop b{font-size:1rem}.questBadge{border-radius:999px;padding:.22rem .5rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);font-size:.78rem;color:#cbd5e1}
+          .questNeed{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0}.questNeed span{border-radius:999px;background:rgba(2,6,23,.42);border:1px solid rgba(255,255,255,.12);padding:.2rem .45rem;font-size:.82rem;color:#cbd5e1}
+          .questActions{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem}.questActions button{justify-content:center}
+          .questText{color:#94a3b8;line-height:1.38;margin:.45rem 0}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v13QuestSystem){
+            window.__v13QuestSystem=true;
+            const QUESTS={
+              lumber:{npcId:'forester',npc:'Forester Finn',title:'Lumber Errand',need:{logs:10},reward:{gold:45,xp:{woodcutting:30}},ask:'Bring me 10 Logs and I will pay you proper village money.',done:'Fine logs. Here is your pay.'},
+              copper:{npcId:'miner',npc:'Miner Mags',title:'Copper Starter',need:{copperOre:12},reward:{gold:60,xp:{mining:35}},ask:'Bring me 12 Copper Ore. I want to see if this hill is worth digging.',done:'That copper will do nicely.'},
+              fish:{npcId:'cookPete',npc:'Cook Pete',title:'Fish Feast',need:{cookedFish:5},reward:{gold:75,xp:{fishing:20,cooking:35}},ask:'Cook me 5 fish. Raw fish has too many opinions.',done:'Food that does not stare back. Perfect.'},
+              guard:{npcId:'guard',npc:'Guard Bria',title:'Rat Proof',need:{bones:5},reward:{gold:90,xp:{combat:45}},ask:'Bring me 5 Bones so I know you can handle the rats.',done:'Good work. The village is a tiny bit less embarrassing now.'}
+            };
+            const ITEM_NAMES={logs:'Logs',oakLogs:'Oak Logs',copperOre:'Copper Ore',ironOre:'Iron Ore',rawFish:'Raw Fish',cookedFish:'Cooked Fish',bones:'Bones',goblinEars:'Goblin Ears'};
+            const SKILL_NAMES={woodcutting:'Woodcutting',mining:'Mining',fishing:'Fishing',cooking:'Cooking',combat:'Combat',smithing:'Smithing'};
+            state.quests={lumber:'not_started',copper:'not_started',fish:'not_started',guard:'not_started',...(state.quests||{})};
+
+            try{
+              if(typeof entities!=='undefined'&&!entities.some(e=>e.id==='cookPete')){
+                entities.push({id:'cookPete',name:'Cook Pete',kind:'npc',label:'Talk',x:10.9,y:8.7,w:.9,h:.9,z:.9,color:'#c2410c',icon:'👨‍🍳',solid:false,msg:'Cook Pete says: I can turn fish into slightly less suspicious fish.'});
+                addLog('Cook Pete has arrived near the inn with a new quest.');
+              }
+            }catch(e){}
+
+            function itemName(k){return ITEM_NAMES[k]||k}
+            function hasNeed(need){return Object.entries(need).every(([k,v])=>(state.inv&&state.inv[k]||0)>=v)}
+            function takeNeed(need){Object.entries(need).forEach(([k,v])=>state.inv[k]=(state.inv[k]||0)-v)}
+            function giveReward(r){
+              state.gold=(state.gold||0)+(r.gold||0);
+              if(!state.skills)state.skills={};
+              Object.entries(r.xp||{}).forEach(([k,v])=>state.skills[k]=(state.skills[k]||0)+v);
+            }
+            function saveQuest(){try{localStorage.setItem(SAVE,JSON.stringify(state));renderHUD()}catch(e){}}
+            function questByNpc(id){return Object.entries(QUESTS).find(([qid,q])=>q.npcId===id)}
+            function statusText(s){return s==='not_started'?'Not started':s==='active'?'Active':s==='complete'?'Complete':s}
+            function needHTML(q){return '<div class="questNeed">'+Object.entries(q.need).map(([k,v])=>'<span>'+itemName(k)+': '+((state.inv&&state.inv[k])||0)+'/'+v+'</span>').join('')+'</div>'}
+            function rewardText(q){
+              const parts=[];
+              if(q.reward.gold)parts.push(q.reward.gold+' Gold');
+              Object.entries(q.reward.xp||{}).forEach(([k,v])=>parts.push(v+' '+(SKILL_NAMES[k]||k)+' XP'));
+              return parts.join(' • ');
+            }
+
+            window.startQuest=function(id){
+              if(!QUESTS[id])return;
+              if(state.quests[id]!=='not_started')return openPanel('quests');
+              state.quests[id]='active';
+              addLog(QUESTS[id].title+' accepted.');
+              saveQuest();
+              openQuestNpc(id);
+            };
+            window.turnInQuest=function(id){
+              const q=QUESTS[id];if(!q)return;
+              if(state.quests[id]!=='active')return openPanel('quests');
+              if(!hasNeed(q.need)){addLog('You do not have enough items for '+q.title+'.');return openQuestNpc(id)}
+              takeNeed(q.need);giveReward(q.reward);state.quests[id]='complete';
+              addLog(q.title+' complete. Reward: '+rewardText(q)+'.');
+              saveQuest();
+              openQuestNpc(id);
+            };
+
+            window.openQuestNpc=function(id){
+              const q=QUESTS[id];if(!q)return;
+              const st=state.quests[id]||'not_started';
+              const ready=st==='active'&&hasNeed(q.need);
+              ui.overlay.classList.add('show');
+              ui.modalTitle.textContent='📜 '+q.npc;
+              ui.modalHint.textContent=q.title;
+              let body='<div class="questCard '+(ready?'ready ':'')+(st==='complete'?'complete':'')+'"><div class="questTop"><b>'+q.title+'</b><span class="questBadge">'+statusText(st)+'</span></div>';
+              if(st==='not_started')body+='<p class="questText">'+q.ask+'</p>'+needHTML(q)+'<p class="questText">Reward: '+rewardText(q)+'</p><div class="questActions"><button class="primary" onclick="startQuest(\\''+id+'\\')">Accept Quest</button><button class="btn" onclick="closePanel()">Maybe later</button></div>';
+              if(st==='active'&&!ready)body+='<p class="questText">Still need these items in your bag:</p>'+needHTML(q)+'<p class="questText">Reward: '+rewardText(q)+'</p><div class="questActions"><button class="btn" onclick="closePanel()">Keep working</button></div>';
+              if(st==='active'&&ready)body+='<p class="questText">'+q.done+'</p>'+needHTML(q)+'<div class="questActions"><button class="primary" onclick="turnInQuest(\\''+id+'\\')">Turn In</button><button class="btn" onclick="closePanel()">Wait</button></div>';
+              if(st==='complete')body+='<p class="questText">Quest complete. '+q.npc+' has nothing else for you yet.</p><p class="questText">Reward earned: '+rewardText(q)+'</p><div class="questActions"><button class="primary" onclick="closePanel()">Done</button></div>';
+              body+='</div>';
+              ui.modalBody.innerHTML=body;
+            };
+
+            function questsHTML(){
+              return Object.entries(QUESTS).map(([id,q])=>{
+                const st=state.quests[id]||'not_started';
+                const ready=st==='active'&&hasNeed(q.need);
+                return '<div class="questCard '+(ready?'ready ':'')+(st==='complete'?'complete':'')+'"><div class="questTop"><b>'+q.title+'</b><span class="questBadge">'+(ready?'Ready':statusText(st))+'</span></div><p class="questText"><b>'+q.npc+'</b> — '+(st==='not_started'?q.ask:st==='complete'?'Complete.':ready?'Ready to turn in.':'In progress.')+'</p>'+needHTML(q)+'<p class="questText">Reward: '+rewardText(q)+'</p><div class="questActions"><button class="btn" onclick="openQuestNpc(\\''+id+'\\')">View</button></div></div>';
+              }).join('');
+            }
+
+            const prevOpenPanel=openPanel;
+            openPanel=function(kind){
+              if(kind==='quests'){
+                ui.overlay.classList.add('show');
+                ui.modalTitle.textContent='📜 Quests';
+                ui.modalHint.textContent='Track jobs from village NPCs.';
+                ui.modalBody.innerHTML=questsHTML();
+                return;
+              }
+              prevOpenPanel(kind);
+            };
+
+            const prevInteract=interact;
+            interact=function(e){
+              const found=e&&questByNpc(e.id);
+              if(found){openQuestNpc(found[0]);return;}
+              prevInteract(e);
+            };
+
+            const actionCluster=document.querySelector('.actionCluster');
+            if(actionCluster&&!document.getElementById('questBtn')){
+              const b=document.createElement('button');b.className='btn';b.id='questBtn';b.textContent='Quests';b.onclick=()=>openPanel('quests');actionCluster.appendChild(b);
+            }
+
+            addLog('V13 quest system loaded: talk to Forester Finn, Miner Mags, Cook Pete, or Guard Bria.');
+            saveQuest();
+          }
+        `);
+      }catch(e){console.warn('V13 quest patch failed',e);}
+    }
+
+    v13Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>130)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
