@@ -39,14 +39,16 @@
       const bankPanel=sectionByTitle('Bank');
       const shopPanel=sectionByTitle('Shop');
       const invPanel=sectionByTitle('Inventory');
-      if(!bankPanel||!shopPanel||!invPanel)return;
+      const skillsPanel=sectionByTitle('Skills');
+      if(!bankPanel||!shopPanel||!invPanel||!skillsPanel)return;
 
-      [bankPanel,shopPanel,invPanel].forEach(p=>p.classList.add('overlay-hidden-panel'));
+      [bankPanel,shopPanel,invPanel,skillsPanel].forEach(p=>p.classList.add('overlay-hidden-panel'));
 
       const row=d.createElement('div');
       row.className='overlay-launch-row';
       row.innerHTML=`
         <button class="primary" id="overlayInventoryBtn">🎒 Inventory</button>
+        <button id="overlaySkillsBtn">⚡ Skills</button>
         <button id="overlayBankBtn" hidden>🏦 Bank</button>
         <button id="overlayShopBtn" hidden>🏪 Shop</button>
       `;
@@ -72,6 +74,7 @@
       const bankBtn=d.getElementById('overlayBankBtn');
       const shopBtn=d.getElementById('overlayShopBtn');
       const invBtn=d.getElementById('overlayInventoryBtn');
+      const skillsBtn=d.getElementById('overlaySkillsBtn');
       let active=null;
 
       function closeOverlay(){
@@ -88,6 +91,10 @@
         if(kind==='inventory'){
           title.textContent='🎒 Inventory';
           hint.textContent='Your backpack, food, and bank deposit shortcuts.';
+        }
+        if(kind==='skills'){
+          title.textContent='⚡ Skills';
+          hint.textContent='Track your levels and XP without the panel taking over the page.';
         }
         if(kind==='bank'){
           title.textContent='🏦 Bank';
@@ -111,6 +118,7 @@
       }
 
       invBtn.onclick=()=>openOverlay('inventory',invPanel);
+      skillsBtn.onclick=()=>openOverlay('skills',skillsPanel);
       bankBtn.onclick=()=>openOverlay('bank',bankPanel);
       shopBtn.onclick=()=>openOverlay('shop',shopPanel);
       d.getElementById('overlayCloseBtn').onclick=closeOverlay;
