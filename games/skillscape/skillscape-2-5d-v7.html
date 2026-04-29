@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V7</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="v7Frame" src="skillscape-2-5d-v6.html?v=mobile-hud-cleanup-1" title="Skillscape 2.5D Prototype V7"></iframe>
+  <script>
+    const v7Frame=document.getElementById('v7Frame');
+
+    function findGame(doc,depth=0){
+      if(!doc||depth>10)return null;
+      try{
+        if(doc.getElementById('game')&&doc.defaultView)return {doc,win:doc.defaultView};
+        const frames=[...doc.querySelectorAll('iframe')];
+        for(const f of frames){
+          const hit=findGame(f.contentDocument,depth+1);
+          if(hit)return hit;
+        }
+      }catch(e){return null;}
+      return null;
+    }
+
+    function patch(){
+      let hit;
+      try{ hit=findGame(v7Frame.contentDocument); }catch(e){ return; }
+      if(!hit)return;
+      const d=hit.doc,w=hit.win;
+
+      if(!d.getElementById('v7HudStyle')){
+        const style=d.createElement('style');
+        style.id='v7HudStyle';
+        style.textContent=`
+          .smallNote{display:none!important}
+          .canvasWrap{height:min(72vh,690px)!important;min-height:430px!important}
+          .hudTop{top:.45rem!important;left:.45rem!important;right:.45rem!important;gap:.32rem!important}
+          .chip{font-size:.76rem!important;padding:.25rem .48rem!important;background:rgba(2,6,23,.78)!important}
+          .controls{left:.45rem!important;right:.45rem!important;bottom:.45rem!important;align-items:flex-end!important;z-index:10!important}
+          .pad{grid-template-columns:repeat(3,42px)!important;gap:.28rem!important}
+          .pad button{min-height:40px!important;background:rgba(15,23,42,.64)!important;backdrop-filter:blur(4px)!important}
+          .actionCluster{position:absolute!important;right:0!important;bottom:0!important;display:grid!important;grid-template-columns:1fr!important;gap:.38rem!important;width:min(48vw,230px)!important;max-width:none!important;justify-content:stretch!important}
+          .actionCluster button{width:100%!important;justify-content:center!important;background:rgba(15,23,42,.62)!important;backdrop-filter:blur(4px)!important;border:1px solid rgba(255,255,255,.18)!important;padding:.6rem .55rem!important;font-size:.9rem!important}
+          #useBtn{font-size:1rem!important;font-weight:900!important;padding:.72rem .65rem!important;background:linear-gradient(90deg,#38bdf8,#22c55e)!important;color:#02111f!important}
+          #invBtn,#skillsBtn,#equipBtn{font-size:.86rem!important}
+          .cameraControls{display:none!important}
+          .v7CameraDock{position:absolute;top:2.85rem;right:.45rem;z-index:20;pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
+          .v7CameraDock button,.v7CameraDock span{border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(2,6,23,.78);color:#e5e7eb;padding:.38rem .55rem;font:inherit;font-size:.78rem;font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.28)}
+          .v7CameraMenu{display:none;gap:.3rem;flex-wrap:wrap;justify-content:flex-end;max-width:235px;background:rgba(2,6,23,.66);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:.42rem;backdrop-filter:blur(5px)}
+          .v7CameraDock.open .v7CameraMenu{display:flex}
+          .v7CameraLabel{display:inline-flex;gap:.3rem;align-items:center}
+          .rpgProgress{bottom:6.1rem!important;left:.5rem!important;right:.5rem!important;z-index:14!important}
+          .side{display:none!important}
+          .gameGrid{grid-template-columns:1fr!important}
+          .canvasPanel{padding:.65rem!important}
+          .hero{margin-bottom:.65rem!important}
+          .tag{display:none!important}
+          h1{font-size:clamp(1.8rem,9vw,3rem)!important}
+          .stats{grid-template-columns:repeat(4,minmax(0,1fr))!important;width:100%!important}
+          .stat{padding:.52rem .3rem!important;border-radius:14px!important}
+          .stat b{font-size:.98rem!important}
+          .stat span{font-size:.78rem!important}
+          .nav{gap:.33rem!important;margin-top:.55rem!important}
+          .nav .btn,.nav .primary,.nav a{padding:.48rem .55rem!important;font-size:.82rem!important}
+          @media(max-width:520px){
+            .wrap{padding:.45rem!important}
+            .hero,.panel{border-radius:18px!important;padding:.62rem!important}
+            .canvasWrap{height:72vh!important;min-height:430px!important;border-radius:18px!important}
+            .stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+            .hudTop .chip:nth-child(3){display:none!important}
+            .controls{bottom:.38rem!important}
+            .pad{grid-template-columns:repeat(3,39px)!important}
+            .pad button{min-height:37px!important;border-radius:13px!important}
+            .actionCluster{width:min(50vw,210px)!important;gap:.32rem!important}
+            .actionCluster button{font-size:.82rem!important;padding:.54rem .45rem!important}
+            #useBtn{font-size:.92rem!important;padding:.66rem .5rem!important}
+            .v7CameraDock{top:2.7rem;right:.35rem}
+            .v7CameraDock button,.v7CameraDock span{font-size:.72rem;padding:.32rem .44rem}
+            .v7CameraMenu{max-width:190px}
+            .rpgProgress{bottom:5.75rem!important}
+          }
+          @media(max-width:380px){
+            .canvasWrap{height:70vh!important;min-height:405px!important}
+            .actionCluster{width:48vw!important}
+            #invBtn,#skillsBtn,#equipBtn{font-size:.78rem!important}
+            .pad{grid-template-columns:repeat(3,36px)!important}
+            .pad button{min-height:35px!important}
+          }
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__v7HudCleanup){
+            window.__v7HudCleanup=true;
+            const wrap=document.getElementById('canvasWrap');
+            if(wrap&&!document.getElementById('v7CameraDock')){
+              const dock=document.createElement('div');
+              dock.id='v7CameraDock';
+              dock.className='v7CameraDock';
+              dock.innerHTML='<button id="v7CameraToggle" class="v7CameraLabel">🎥 <span id="v7CameraText">Camera</span></button><div class="v7CameraMenu"><button id="v7CamLeft">↶</button><button id="v7CamRight">↷</button><button id="v7CamReset">Reset</button><button data-v7cam="N">N</button><button data-v7cam="E">E</button><button data-v7cam="S">S</button><button data-v7cam="W">W</button><button data-v7cam="NE">NE</button><button data-v7cam="SE">SE</button><button data-v7cam="SW">SW</button><button data-v7cam="NW">NW</button></div>';
+              wrap.appendChild(dock);
+              const txt=document.getElementById('v7CameraText');
+              const labels=['NE','E','SE','S','SW','W','NW','N'];
+              function label(){
+                const camLabel=document.getElementById('camLabel');
+                const fallback=labels[window.cameraIndex||0]||'NE';
+                const raw=camLabel?camLabel.textContent.replace('Camera ',''):fallback;
+                txt.textContent='Camera '+raw;
+              }
+              window.v7RefreshCameraLabel=label;
+              label();
+              document.getElementById('v7CameraToggle').onclick=()=>dock.classList.toggle('open');
+              document.getElementById('v7CamLeft').onclick=()=>{rotateCamera(-1);label();};
+              document.getElementById('v7CamRight').onclick=()=>{rotateCamera(1);label();};
+              document.getElementById('v7CamReset').onclick=()=>{resetCamera();label();};
+              document.querySelectorAll('[data-v7cam]').forEach(btn=>btn.onclick=()=>{setCamera(btn.dataset.v7cam);label();dock.classList.remove('open');});
+              setInterval(label,600);
+            }
+
+            const actionCluster=document.querySelector('.actionCluster');
+            if(actionCluster&&!document.getElementById('logBtn')){
+              const logBtn=document.createElement('button');
+              logBtn.className='btn';
+              logBtn.id='logBtn';
+              logBtn.textContent='Log';
+              logBtn.onclick=()=>openPanel('log');
+              actionCluster.appendChild(logBtn);
+            }
+
+            const oldOpenPanel=openPanel;
+            openPanel=function(kind){
+              if(kind==='log'){
+                ui.overlay.classList.add('show');
+                ui.modalTitle.textContent='☠️ Log';
+                ui.modalHint.textContent='Recent actions and messages.';
+                ui.modalBody.innerHTML=(state.log||[]).map(l=>'<div class="log">'+l+'</div>').join('')||'<div class="log">Nothing yet.</div>';
+                return;
+              }
+              oldOpenPanel(kind);
+            };
+
+            const goal=document.querySelector('.smallNote');
+            if(goal)goal.innerHTML='<b>2.5D V7:</b> Mobile HUD cleanup active.';
+            addLog('V7 mobile HUD cleanup loaded. Camera moved into a compact menu.');
+          }
+        `);
+      }catch(e){console.warn('V7 HUD patch failed',e);}
+    }
+
+    v7Frame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{patch();ticks++;if(ticks>80)clearInterval(t)},250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
