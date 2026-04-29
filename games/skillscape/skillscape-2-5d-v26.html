@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D V26</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="skillscape-2-5d-v24.html?v=no-select-controls-safe-2" title="Skillscape 2.5D V26"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+
+    function patch(){
+      let d,w;
+      try{d=frame.contentDocument;w=frame.contentWindow;if(!d||!w)return;}catch(e){return;}
+      if(d.getElementById('v26NoSelectSafePatch'))return;
+
+      const style=d.createElement('style');
+      style.id='v26NoSelectSafePatch';
+      style.textContent=`
+        html,body,.app,.tray,.dpad,.dpad *,.actions,.actions *,button,#use,#game,.wrap,.cam,.cam *{
+          -webkit-user-select:none!important;
+          user-select:none!important;
+          -webkit-touch-callout:none!important;
+          -webkit-tap-highlight-color:transparent!important;
+        }
+        button{outline:none!important;touch-action:manipulation!important}
+        .dpad button{touch-action:none!important}
+        #use{touch-action:manipulation!important}
+        ::selection{background:transparent!important;color:inherit!important}
+      `;
+      d.head.appendChild(style);
+
+      const isControlTarget=e=>e.target && e.target.closest && (e.target.closest('.dpad')||e.target.closest('#use')||e.target.closest('.actions')||e.target.closest('.cam'));
+
+      // Prevent selection/callout, but do NOT cancel touchstart/click on Use Nearby.
+      d.addEventListener('selectstart',e=>{if(isControlTarget(e))e.preventDefault();},{capture:true});
+      d.addEventListener('dragstart',e=>{if(isControlTarget(e))e.preventDefault();},{capture:true});
+      d.addEventListener('contextmenu',e=>{if(isControlTarget(e))e.preventDefault();},{capture:true});
+
+      // Mobile Chrome sometimes eats the normal click after anti-selection rules.
+      // This gives Use Nearby a direct pointerup fallback without double-firing.
+      const use=d.getElementById('use');
+      if(use && !use.dataset.v26TapFixed){
+        use.dataset.v26TapFixed='1';
+        let lastTap=0;
+        use.addEventListener('pointerup',e=>{
+          const now=Date.now();
+          if(now-lastTap<350)return;
+          lastTap=now;
+          try{
+            if(typeof w.useNear==='function')w.useNear();
+            else use.click();
+          }catch(err){try{use.click();}catch(e2){}}
+        },{passive:true});
+      }
+
+      d.querySelectorAll('.dpad button,.actions button,.cam button,button').forEach(btn=>btn.setAttribute('unselectable','on'));
+      try{ if(w.log) w.log('V26 loaded: Use Nearby tap restored; mobile highlighting reduced.'); }catch(e){}
+    }
+
+    frame.addEventListener('load',()=>{patch();let n=0;const t=setInterval(()=>{patch();if(++n>20)clearInterval(t)},250)});
+  </script>
+</body>
+</html>
