@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D Prototype V4</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden}
+    iframe{display:block;width:100%;height:100vh;border:0;background:#020617}
+  </style>
+</head>
+<body>
+  <iframe id="outerFrame" src="skillscape-2-5d-v3.html?v=interaction-fix-1" title="Skillscape 2.5D Prototype V4"></iframe>
+  <script>
+    const outerFrame=document.getElementById('outerFrame');
+
+    function getGame(){
+      try{
+        const outerDoc=outerFrame.contentDocument;
+        const gameFrame=outerDoc && outerDoc.getElementById('gameFrame');
+        return {doc:gameFrame && gameFrame.contentDocument, win:gameFrame && gameFrame.contentWindow};
+      }catch(e){return {doc:null,win:null};}
+    }
+
+    function patch(){
+      const {doc:d,win:w}=getGame();
+      if(!d||!w)return;
+
+      if(!d.getElementById('v4InteractionStyle')){
+        const style=d.createElement('style');
+        style.id='v4InteractionStyle';
+        style.textContent=`
+          .buildingActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:.75rem}
+          .buildingActions button{justify-content:center}
+          .dialogueBox{background:rgba(30,41,59,.8);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:1rem;line-height:1.45}
+          .dialogueSpeaker{font-size:1.1rem;font-weight:900;margin-bottom:.4rem}
+          .dialogueText{color:#cbd5e1}
+          @media(max-width:520px){.buildingActions{grid-template-columns:1fr}}
+        `;
+        d.head.appendChild(style);
+      }
+
+      try{
+        w.eval(`
+          if(!window.__interactionFixV4){
+            window.__interactionFixV4=true;
+
+            function distanceToEntity(e){
+              const px=state.player.x;
+              const py=state.player.y;
+              const ex=e.x;
+              const ey=e.y;
+              const ew=e.w||1;
+              const eh=e.h||1;
+              const cx=Math.max(ex,Math.min(px,ex+ew));
+              const cy=Math.max(ey,Math.min(py,ey+eh));
+              return Math.hypot(px-cx,py-cy);
+            }
+
+            nearby=function(){
+              return entities.filter(e=>distanceToEntity(e)<1.75);
+            };
+
+            function openBuilding(e){
+              ui.overlay.classList.add('show');
+              ui.modalTitle.textContent=e.icon+' '+e.name;
+              ui.modalHint.textContent='Prototype interior interaction. This confirms building entry works before we build real rooms.';
+              let body='';
+              if(e.id==='bank'){
+                body='<div class="dialogueBox"><div class="dialogueSpeaker">Banker</div><div class="dialogueText">Welcome to the bank. In the full 2.5D build, this will open the real deposit and withdraw interface.</div></div><div class="buildingActions"><button class="primary" onclick="addLog(\\'Bank interface placeholder opened.\\');closePanel()">Open Bank</button><button class="btn" onclick="closePanel()">Exit</button></div>';
+              }else if(e.id==='shop'){
+                body='<div class="dialogueBox"><div class="dialogueSpeaker">Merchant</div><div class="dialogueText">Buy upgrades, sell loot, and complain about inventory space here. Full shop logic comes after this movement test.</div></div><div class="buildingActions"><button class="primary" onclick="addLog(\\'Shop interface placeholder opened.\\');closePanel()">Open Shop</button><button class="btn" onclick="closePanel()">Exit</button></div>';
+              }else if(e.id==='inn'){
+                body='<div class="dialogueBox"><div class="dialogueSpeaker">Innkeeper</div><div class="dialogueText">You rest at the inn and recover your HP.</div></div><div class="buildingActions"><button class="primary" onclick="state.hp=state.maxHp;addLog(\\'Rested at the inn. HP restored.\\');renderHUD();closePanel()">Rest</button><button class="btn" onclick="closePanel()">Exit</button></div>';
+              }else if(e.id==='smithy'){
+                body='<div class="dialogueBox"><div class="dialogueSpeaker">Smithy</div><div class="dialogueText">The furnace is hot. Future version: smelt ore and craft gear here.</div></div><div class="buildingActions"><button class="primary" onclick="addLog(\\'Smithy crafting placeholder opened.\\');closePanel()">Use Furnace</button><button class="btn" onclick="closePanel()">Exit</button></div>';
+              }else{
+                body='<div class="dialogueBox"><div class="dialogueText">You enter '+e.name+'.</div></div><div class="buildingActions"><button class="btn" onclick="closePanel()">Exit</button></div>';
+              }
+              ui.modalBody.innerHTML=body;
+            }
+
+            function openDialogue(e){
+              ui.overlay.classList.add('show');
+              ui.modalTitle.textContent=e.icon+' '+e.name;
+              ui.modalHint.textContent='NPC dialogue test.';
+              ui.modalBody.innerHTML='<div class="dialogueBox"><div class="dialogueSpeaker">'+e.name+'</div><div class="dialogueText">'+(e.msg||'Hello there.')+'</div></div><div class="buildingActions"><button class="primary" onclick="addLog(\\'Talked with '+e.name.replace(/'/g,'')+'.\\');closePanel()">Continue</button><button class="btn" onclick="closePanel()">Close</button></div>';
+            }
+
+            const oldInteract=interact;
+            interact=function(e){
+              if(e.kind==='door'){
+                openBuilding(e);
+                addLog('Entered '+e.name+'.');
+                return;
+              }
+              if(e.kind==='npc'){
+                openDialogue(e);
+                return;
+              }
+              oldInteract(e);
+            };
+
+            nearbyHTML=function(){
+              window.__nearbyChoices=nearby();
+              return '<div class="bankSummary"><span class="chip">Choose what to use</span><span class="chip">Nearby '+window.__nearbyChoices.length+'</span></div>'+window.__nearbyChoices.map((e,i)=>{
+                let action=e.label||'Use';
+                if(e.kind==='door') action='Enter building';
+                if(e.kind==='npc') action='Talk';
+                return '<button class="btn choice" onclick="chooseNear('+i+')"><span><b>'+(e.icon||'')+' '+e.name+'</b><small>'+action+'</small></span><span>›</span></button>';
+              }).join('');
+            };
+
+            const oldOpenPanel=openPanel;
+            openPanel=function(kind){
+              if(kind==='nearby'){
+                ui.overlay.classList.add('show');
+                ui.modalTitle.textContent='👆 Choose Nearby';
+                ui.modalHint.textContent='Pick the exact target to use, enter, or talk to.';
+                ui.modalBody.innerHTML=nearbyHTML();
+                return;
+              }
+              oldOpenPanel(kind);
+            };
+
+            useNearby=function(){
+              const n=nearby();
+              if(!n.length)return addLog('Nothing close enough to use.');
+              if(n.length===1)return interact(n[0]);
+              openPanel('nearby');
+            };
+
+            chooseNear=function(i){
+              const e=(window.__nearbyChoices||nearby())[i];
+              closePanel();
+              if(e)interact(e);
+            };
+            window.chooseNear=chooseNear;
+
+            const useButton=document.getElementById('useBtn');
+            if(useButton)useButton.onclick=useNearby;
+
+            addLog('V4 interaction fix loaded: buildings and NPCs are now usable.');
+            renderHUD();
+          }
+        `);
+      }catch(e){console.warn('V4 interaction patch failed',e);}
+    }
+
+    outerFrame.addEventListener('load',()=>{
+      patch();
+      let ticks=0;
+      const t=setInterval(()=>{
+        patch();
+        ticks++;
+        if(ticks>50)clearInterval(t);
+      },250);
+    });
+    setInterval(patch,1000);
+  </script>
+</body>
+</html>
