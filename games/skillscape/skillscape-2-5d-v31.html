@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skillscape 2.5D V31</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#020617;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+    iframe{display:block;width:100%;height:100dvh;min-height:100svh;border:0;background:#020617;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  </style>
+</head>
+<body>
+  <iframe id="gameFrame" src="skillscape-2-5d-v30.html?v=v31-footprint-fix" title="Skillscape 2.5D V31"></iframe>
+  <script>
+    const frame=document.getElementById('gameFrame');
+
+    function patch(){
+      let w,d;
+      try{w=frame.contentWindow;d=frame.contentDocument;if(!w||!d)return;}catch(e){return;}
+      try{
+        w.eval(`
+          if(!window.__v31FootprintFix){
+            window.__v31FootprintFix=true;
+            try{
+              if(typeof anim!=='undefined' && anim.footprints){
+                anim.footprints.length=0;
+                const realPush=Array.prototype.push;
+                anim.footprints.push=function(mark){
+                  return realPush.call(this,{wx:state.player.x,wy:state.player.y,age:0,side:this.length%2});
+                };
+              }
+              drawFootprints=function(){
+                if(typeof anim==='undefined'||!anim.footprints)return;
+                for(let f of anim.footprints){
+                  let alpha=Math.max(0,0.13*(1-f.age/1.8));
+                  let p=scr(f.wx||state.player.x,f.wy||state.player.y,0);
+                  ctx.save();
+                  ctx.globalAlpha=alpha;
+                  ctx.fillStyle='#78350f';
+                  let ox=f.side?3:-3;
+                  ctx.beginPath();
+                  ctx.ellipse(p.x+ox,p.y+16,3.5,2.1,0.25,0,Math.PI*2);
+                  ctx.fill();
+                  ctx.restore();
+                }
+              };
+              if(typeof log==='function')log('V31 loaded: transparent footprint artifacts fixed.');
+            }catch(err){console.warn('V31 inner patch error',err)}
+          }
+        `);
+      }catch(e){console.warn('V31 patch failed',e)}
+    }
+
+    frame.addEventListener('load',()=>{
+      patch();
+      let n=0;
+      const t=setInterval(()=>{patch();if(++n>30)clearInterval(t)},250);
+    });
+  </script>
+</body>
+</html>
