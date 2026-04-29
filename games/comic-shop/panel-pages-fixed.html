@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Panel & Pages</title>
+  <style>
+    html,body{margin:0;height:100%;background:#111;color:#f5c842;font-family:system-ui,sans-serif;display:grid;place-items:center;text-align:center;padding:1rem}
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Loading Panel & Pages…</h1>
+    <p>Fixing the reset-menu script before launch.</p>
+  </div>
+  <script>
+    (async function(){
+      try{
+        let html = await fetch('./comic-shop-index.html?v=' + Date.now(), {cache:'no-store'}).then(r => r.text());
+        html = html.replace("confirm(\\'Reset?\\\\')", "confirm(\\'Reset?\\')");
+        html = html.replace('<title>Panel & Pages</title>', '<title>Panel & Pages</title>');
+        document.open();
+        document.write(html);
+        document.close();
+      }catch(err){
+        document.body.innerHTML = '<pre style="white-space:pre-wrap;color:#f5c842">Panel & Pages failed to load: '+String(err)+'</pre>';
+      }
+    })();
+  </script>
+</body>
+</html>
