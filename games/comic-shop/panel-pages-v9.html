@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel & Pages v9</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#111;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}iframe{border:0;width:100%;height:100%;display:block;background:#111}.loading{position:fixed;inset:0;display:grid;place-items:center;color:#f5c842;background:#111;font-family:system-ui,sans-serif;z-index:2;text-align:center}.loading.hide{display:none}
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><div><h1>Loading Panel & Pages…</h1><p>Direct game patch</p></div></div>
+<iframe id="gameFrame" src="panel-pages-v6.html?v=14"></iframe>
+<script>
+const frame=document.getElementById('gameFrame');
+const loading=document.getElementById('loading');
+frame.addEventListener('load',()=>{
+  try{
+    const w=frame.contentWindow;
+    w.eval(`
+      (function(){
+        if(window.__pp_v9_patch)return;
+        window.__pp_v9_patch=true;
+
+        const style=document.createElement('style');
+        style.textContent='*{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}button,.dpad,.acts,#use,.tray{touch-action:none!important}canvas{touch-action:none!important}.dpad button{font-size:0!important;position:relative}.dpad button::after{font-size:18px;line-height:1;display:block}.dpad button[data-dir="up"]::after{content:"▲"}.dpad button[data-dir="down"]::after{content:"▼"}.dpad button[data-dir="left"]::after{content:"◀"}.dpad button[data-dir="right"]::after{content:"▶"}';
+        document.head.appendChild(style);
+
+        document.addEventListener('selectstart',function(e){if(e.target.closest&&e.target.closest('.dpad,.acts,#use,.tray,button,canvas'))e.preventDefault();},{capture:true});
+        document.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('.dpad,.acts,#use,.tray,button,canvas'))e.preventDefault();},{capture:true});
+        document.addEventListener('dragstart',function(e){if(e.target.closest&&e.target.closest('.dpad,.acts,#use,.tray,button,canvas'))e.preventDefault();},{capture:true});
+        setInterval(()=>{try{getSelection&&getSelection().removeAllRanges();}catch(e){}},500);
+
+        // Refund broken v6 state: no rack placed, money spent.
+        if(S && Array.isArray(S.racks) && S.racks.length===0 && S.cash<100){
+          S.cash=500;
+          S.log=['Refunded money from failed rack placement bug.',...(S.log||[])].slice(0,25);
+          save();
+        }
+
+        // Loosen movement bounds so visible floor feels usable.
+        canWalk=function(x,y){return x>0.05&&y>0.05&&x<W()-0.05&&y<H()-0.05&&!blocked(x,y);};
+
+        // Only charge after valid placement.
+        buyRack=function(k){
+          let r=RACKS[k];
+          if(!r)return;
+          if(S.cash<r.price){addLog('Need '+money(r.price)+' for '+r.name+'.');return;}
+          placing={rack:k};
+          ghost=null;
+          document.getElementById('place').textContent='Tap a valid floor tile to place '+r.name+' — no cash spent until placed';
+          document.getElementById('place').classList.add('show');
+          closeModal();
+        };
+        window.buyRack=buyRack;
+
+        G.addEventListener('pointerdown',function(e){
+          if(!placing)return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          let rect=G.getBoundingClientRect();
+          let t=toTile(e.clientX-rect.left,e.clientY-rect.top);
+          if(!t){addLog('Could not place there — no cash spent.');return;}
+
+          let id=placing.rack || (S.racks[placing.idx] && S.racks[placing.idx].id);
+          let rd=RACKS[id];
+          if(!rd){placing=null;ghost=null;document.getElementById('place').classList.remove('show');return;}
+
+          if(!inShop(t.tx,t.ty,rd.w,rd.h) || placeBlocked(t.tx,t.ty,rd.w,rd.h,placing.idx)){
+            addLog('That spot is blocked — no cash spent. Try another tile.');
+            return;
+          }
+
+          if(placing.rack){
+            if(S.cash<rd.price){addLog('Need '+money(rd.price)+' for '+rd.name+'.');return;}
+            S.cash-=rd.price;
+            S.racks.push({id:id,x:t.tx,y:t.ty});
+            addLog('Placed '+rd.name+' for '+money(rd.price)+'.');
+          }else{
+            S.racks[placing.idx].x=t.tx;
+            S.racks[placing.idx].y=t.ty;
+            addLog('Moved '+rd.name+'.');
+          }
+
+          placing=null;
+          ghost=null;
+          document.getElementById('place').classList.remove('show');
+          save();
+        },true);
+
+        document.getElementById('use').onclick=function(){
+          if(placing){
+            placing=null;
+            ghost=null;
+            document.getElementById('place').classList.remove('show');
+            addLog('Rack placement canceled — no cash spent.');
+            return;
+          }
+          useNear();
+        };
+
+        // Safe boundary overlay only if draw exists in this page.
+        if(typeof draw==='function'){
+          const originalDraw=draw;
+          draw=function(){
+            originalDraw();
+            try{
+              C.save();
+              C.globalAlpha=0.35;
+              C.strokeStyle='#f5c84255';
+              C.lineWidth=2;
+              const pts=[p(0.08,0.08),p(W()-0.08,0.08),p(W()-0.08,H()-0.08),p(0.08,H()-0.08)];
+              C.beginPath();C.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)C.lineTo(pts[i].x,pts[i].y);C.closePath();C.stroke();
+              C.restore();
+            }catch(e){}
+          };
+        }
+      })();
+    `);
+  }catch(err){
+    document.body.insertAdjacentHTML('beforeend','<pre style="position:fixed;inset:1rem;color:#f5c842;background:#111;z-index:3;white-space:pre-wrap">Patch failed: '+String(err)+'</pre>');
+  }finally{
+    loading.classList.add('hide');
+  }
+});
+</script>
+</body>
+</html>
