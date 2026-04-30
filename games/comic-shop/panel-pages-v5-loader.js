@@ -1,0 +1,98 @@
+(async()=>{
+  try{
+    let html=await fetch('./panel-pages-v3.html?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
+    const patch=`
+(function(){
+  fixedEnts=function(){
+    var sw=shopW(), doorX=Math.floor((sw-1)/2);
+    return [
+      {id:'computer',name:'Computer',kind:'computer',x:1,y:2,w:1,h:1,solid:true},
+      {id:'sign',name:'Open / Closed Sign',kind:'sign',x:Math.min(sw-2,doorX+1),y:1,w:1,h:1,solid:false},
+      {id:'door',name:'Front Door',kind:'door',x:doorX,y:0,w:1,h:1,solid:false}
+    ];
+  };
+  function exitTarget(){return{x:Math.floor((shopW()-1)/2)+0.5,y:0.45};}
+  function leave(n){n.state='leaving';setNpcTarget(n,exitTarget());}
+  function sellToCustomer(n){
+    var item=pickComicForSale();
+    if(!item||!(S.floor[item]>0)){leave(n);return;}
+    var price=salePrice(item);
+    S.floor[item]--;S.cash+=price;S.revenue+=price;S.sales++;xp('sales',5);
+    n.item=item;n.spend=price;n.float=2.2;n.state='leaving';setNpcTarget(n,exitTarget());
+    if(Math.random()<.65)addLog('A customer bought '+COMICS[item].name+' for $'+price+'.');
+    save();
+  }
+  updateCustomers=function(dt){
+    if(S.shopOpen&&rackCount()>0&&totalFloor()>0){
+      npcSpawnClock+=dt;
+      var max=customerTargetCount(), interval=4.2-(hasUpgrade('sign')?1.1:0);
+      if(NPCS.length<max&&npcSpawnClock>=interval){npcSpawnClock=0;NPCS.push(makeNpc());}
+    }
+    for(var i=NPCS.length-1;i>=0;i--){
+      var n=NPCS[i];
+      if(n.float>0)n.float-=dt;
+      if((!S.shopOpen||totalFloor()<=0)&&n.state!=='leaving')leave(n);
+      if(n.state==='leaving'){
+        var ex=exitTarget(), nearDoor=Math.hypot(ex.x-n.x,ex.y-n.y)<0.18;
+        if(!nearDoor)moveNpc(n,dt);
+        else{n.x+=(ex.x-n.x)*Math.min(1,dt*8);n.y-=dt*1.8;if(n.y<-0.35)NPCS.splice(i,1);}
+        continue;
+      }
+      var arrived=moveNpc(n,dt);
+      if(n.state==='entering'&&arrived){n.state='browsing';n.timer=.75+Math.random()*1.15;setNpcTarget(n,pickBrowseSpot());}
+      else if(n.state==='browsing'&&arrived){
+        n.timer-=dt;
+        if(n.timer<=0){
+          if(S.shopOpen&&totalFloor()>0&&Math.random()<.72)sellToCustomer(n);
+          else if(S.shopOpen&&totalFloor()>0&&n.browseCount<3){n.browseCount++;n.timer=.7+Math.random()*1.2;setNpcTarget(n,pickBrowseSpot());}
+          else leave(n);
+        }
+      }
+    }
+  };
+  drawNpc=function(e){
+    var p=ec(e),walk=Math.abs((e.target?e.target.x-e.x:0))+Math.abs((e.target?e.target.y-e.y:0))>.12;
+    var bob=walk?Math.sin(performance.now()/220+(e.x+e.y)*.8)*1.6:Math.sin(performance.now()/500+(e.x+e.y)*.6)*0.8;
+    var t=performance.now()/220+e.x*.5+e.y*.3,arm=walk?Math.sin(t)*12:2;
+    var shirt=e.shirt||'#2980b9';
+    C.save();C.translate(p.x,p.y+bob);C.globalAlpha=.2;ell(0,10,13,5,'#000');C.globalAlpha=1;
+    C.fillStyle='#2c3e50';C.beginPath();C.roundRect(-5,0,4,11,2);C.fill();C.beginPath();C.roundRect(1,0,4,11,2);C.fill();
+    C.fillStyle='#111';C.beginPath();C.roundRect(-6,10,6,4,1);C.fill();C.beginPath();C.roundRect(0,10,6,4,1);C.fill();
+    C.save();C.translate(-8,-9);C.rotate(arm*Math.PI/180);C.fillStyle=shirt;C.beginPath();C.roundRect(-2,0,4,10,2);C.fill();C.restore();
+    C.fillStyle=shirt;C.beginPath();C.roundRect(-7,-17,14,19,3);C.fill();
+    C.save();C.translate(8,-9);C.rotate(-arm*Math.PI/180);C.fillStyle=shirt;C.beginPath();C.roundRect(-2,0,4,10,2);C.fill();
+    if(e.item){C.fillStyle='#fff8dc';C.beginPath();C.roundRect(1,2,9,11,1);C.fill();C.fillStyle='#c0392b';C.fillRect(2,3,7,2);C.fillStyle='#2980b9';C.fillRect(2,6,7,2);}C.restore();
+    C.fillStyle='#f0c080';C.beginPath();C.ellipse(0,-24,7,9,0,0,Math.PI*2);C.fill();
+    C.fillStyle='#3d2200';C.beginPath();C.ellipse(0,-30,7,4,0,Math.PI,Math.PI*2);C.fill();
+    C.fillStyle='#1f2937';C.beginPath();C.arc(-2.5,-24,1.4,0,Math.PI*2);C.fill();C.beginPath();C.arc(2.5,-24,1.4,0,Math.PI*2);C.fill();
+    if(e.spend&&e.float>0){C.save();C.globalAlpha=Math.min(1,e.float);C.fillStyle='#3fb950';C.font='bold 13px system-ui';C.textAlign='center';C.fillText('+$'+e.spend,0,-42-(2.2-e.float)*8);C.restore();}
+    else if(e.state==='browsing'){C.fillStyle='#e5e7eb';C.font='bold 9px system-ui';C.textAlign='center';C.fillText('?',0,-38);} 
+    C.restore();
+  };
+  doInteract=function(e){
+    if(!e)return;
+    if(e.kind==='computer'){computerPanel();return;}
+    if(e.kind==='sign'){S.shopOpen=!S.shopOpen;addLog('Shop sign flipped to '+(S.shopOpen?'OPEN':'CLOSED')+'. '+(S.shopOpen?'Customers may enter again.':'New shoppers will stay out.'));save();modal('🚪 Store Sign','<div class="card"><b>Status:</b> '+(S.shopOpen?'OPEN':'CLOSED')+'<div class="sm" style="margin-top:.4rem">When CLOSED, no new customers enter. Current shoppers finish or leave.</div><br><button onclick="closeModal()">OK</button></div>');return;}
+    if(e.kind==='rack'){modal('🗄 '+e.name,'<div class="card"><button onclick="stockPanel()">Stock this rack</button><br><br><button onclick="startMoving('+e.rackIdx+');closeModal()">Move this rack</button></div>');return;}
+    if(e.kind==='npc'){var msg=e.spend?'Just spent $'+e.spend:(e.state==='leaving'?'Leaving the shop':'Browsing the racks');modal('Customer','<div class="card"><b>Shopper status</b><div class="sm">'+msg+'</div></div>');return;}
+  };
+  customersPanel=function(){
+    checkUnlocks();
+    var active=REQUESTS.filter(function(r){return S.requests[r.id];});
+    var auto='<div class="card"><b>Walk-in traffic</b><div class="sm">Sign: '+(S.shopOpen?'OPEN':'CLOSED')+'</div><div class="sm">Shoppers in store: '+NPCS.length+'</div><div class="sm">Customers self-checkout: they browse, buy from the rack, flash the amount overhead, and the money goes straight to cash.</div></div>';
+    if(!active.length){modal('👥 Customers',auto+'<div class="card">No special requests yet. Build up your store to attract regulars.</div>');return;}
+    modal('👥 Customers',auto+active.map(function(req){var st=S.requests[req.id],needArr=Object.entries(req.need),ready=st==='accepted'&&needArr.every(function(e){return(S.floor[e[0]]||0)>=e[1];}),needStr=needArr.map(function(e){return COMICS[e[0]].name+' ('+(S.floor[e[0]]||0)+'/'+e[1]+')';}).join(', ');return '<div class="card'+(ready?' ready':'')+'"><b>'+req.icon+' '+req.npc+'</b><div class="sm">'+req.text+'</div><div class="sm">Need: '+needStr+'</div><div class="sm">Reward $'+req.reward+' | Status: '+st+'</div>'+(st==='open'?'<button onclick="acceptReq(\''+req.id+'\')">Accept</button>':'')+(ready?'<button onclick="fulfilReq(\''+req.id+'\')">Fulfil +$'+req.reward+'</button>':'')+'</div>';}).join(''));
+  };
+  var reg=document.getElementById('btnReg');
+  if(reg){reg.textContent='💰 Sales';reg.onclick=registerPanel;}
+})();
+`;
+    const idx=html.lastIndexOf('</script>');
+    html=html.slice(0,idx)+patch+html.slice(idx);
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(e){
+    document.body.innerHTML='<pre style="white-space:pre-wrap;color:#f5c842">Panel & Pages v5 failed to load:\n'+String(e)+'</pre>';
+  }
+})();
