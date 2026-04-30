@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Panel & Pages</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#0f1116;color:#eee;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+body{touch-action:manipulation}
+button,input,select,textarea{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.app{height:100dvh;display:flex;flex-direction:column}
+.top{flex-shrink:0;background:#111;border-bottom:1px solid #2a2a2a;padding:.42rem .5rem}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.title{font-weight:900;font-size:clamp(1rem,4vw,1.35rem);color:#f5c842;display:flex;align-items:center;gap:.35rem}
+.statsrow{display:flex;flex-wrap:wrap;gap:.34rem;margin-top:.3rem}
+.pill{background:#171717;border:1px solid #313131;border-radius:7px;padding:.18rem .48rem;font-size:.8rem;font-weight:800;color:#f5c842}
+.pill.good{color:#3fb950}
+.pill.bad{color:#ff7b72}
+button{border:1px solid #3a3a3a;background:#1c1c1c;color:#ddd;border-radius:8px;padding:.4rem .55rem;font:inherit;font-weight:800;cursor:pointer}
+button:active{background:#292929}
+button:disabled{opacity:.4;cursor:default}
+.shell{flex:1;position:relative;min-height:0;background:#0b0d12}
+canvas{width:100%;height:100%;display:block;touch-action:none}
+canvas.placing{cursor:crosshair}
+.hud{position:absolute;top:.55rem;left:.55rem;display:flex;flex-direction:column;gap:.28rem;pointer-events:none;z-index:3}
+.hudpill{background:#111c;border:1px solid #343434;border-radius:8px;padding:.2rem .5rem;font-size:.75rem;color:#ddd}
+.hudpill strong{color:#f5c842}
+.cam{position:absolute;top:.6rem;right:.6rem;display:flex;flex-direction:column;align-items:flex-end;gap:.28rem;z-index:8}
+.camMenu{display:none;flex-wrap:wrap;gap:.2rem;max-width:190px;justify-content:flex-end;background:#111e;border:1px solid #333;border-radius:10px;padding:.35rem}
+.cam.open .camMenu{display:flex}
+.cam button,.camMenu button{font-size:.68rem;padding:.25rem .42rem}
+.placeBar{position:absolute;top:0;left:0;right:0;display:none;z-index:9;text-align:center;padding:.38rem .7rem;background:#f5c84222;border-bottom:2px solid #f5c842;color:#f5c842;font-size:.82rem;font-weight:900}
+.placeBar.show{display:block}
+.tray{flex-shrink:0;background:#111;border-top:1px solid #292929;padding:.42rem .45rem calc(.52rem + env(safe-area-inset-bottom))}
+#use{width:100%;min-height:42px;background:#f0c744;border:none;color:#111;border-radius:10px;font-size:1rem;font-weight:900;margin-bottom:.35rem}
+.tgrid{display:grid;grid-template-columns:auto 1fr;gap:.35rem;align-items:end}
+.dpad{display:grid;grid-template-columns:repeat(3,38px);gap:.22rem;user-select:none;-webkit-user-select:none}
+.dpad span{visibility:hidden}
+.dpad button{height:36px;border-radius:9px;padding:0;font-size:.95rem;touch-action:none;user-select:none;-webkit-user-select:none;outline:none}
+.acts{display:grid;grid-template-columns:repeat(3,1fr);gap:.22rem}
+.acts button{min-height:36px;font-size:.7rem;padding:.28rem .1rem;line-height:1.15}
+.ov{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:40;padding:.8rem}
+.ov.show{display:flex}
+.modal{width:min(680px,98vw);max-height:90dvh;overflow:auto;background:#0d1117;border:2px solid #f5c842;border-radius:10px;box-shadow:0 0 50px #000}
+.mh{display:flex;justify-content:space-between;align-items:center;background:#f5c842;padding:.42rem .68rem;position:sticky;top:0;z-index:2}
+.mh h2{margin:0;font-size:.96rem;color:#111;font-weight:900}
+.mh button{background:#9d2d2d;color:#fff;border:none;padding:.22rem .5rem;border-radius:7px}
+.mb{padding:.7rem;color:#d0d7de;font-size:.84rem;line-height:1.45}
+.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:.6rem;margin:.42rem 0}
+.card b{color:#f5c842}
+.sm{color:#95a1ad;font-size:.76rem}
+.tabs{display:flex;flex-wrap:wrap;gap:.24rem;margin-bottom:.55rem;border-bottom:1px solid #21262d;padding-bottom:.42rem}
+.tabs button{font-size:.76rem;padding:.28rem .5rem;border-radius:8px}
+.tabs button.on{background:#f5c842;color:#111;border-color:#f5c842}
+.tag{display:inline-block;margin-left:.3rem;padding:.06rem .35rem;border-radius:6px;background:#f5c84218;border:1px solid #f5c84266;color:#f5c842;font-size:.66rem;font-weight:900}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.warn{color:#ff7b72}
+.good{color:#3fb950}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (max-width:440px){
+  .dpad{grid-template-columns:repeat(3,34px)}
+  .dpad button{height:33px;font-size:.85rem}
+  .acts button{font-size:.62rem}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="toprow">
+      <div class="title">📚 <span>Panel &amp; Pages</span></div>
+      <button id="btnMenu">☰</button>
+    </div>
+    <div class="statsrow" id="stats"></div>
+  </header>
+  <main class="shell">
+    <canvas id="game"></canvas>
+    <div class="hud" id="hud"></div>
+    <div class="cam" id="camBox">
+      <button id="camBtn">Cam NE</button>
+      <div class="camMenu">
+        <button data-cam="-1">◀</button><button data-cam="1">▶</button>
+        <button data-set="NE">NE</button><button data-set="SE">SE</button>
+        <button data-set="SW">SW</button><button data-set="NW">NW</button>
+        <button data-set="N">N</button><button data-set="S">S</button>
+        <button data-set="E">E</button><button data-set="W">W</button>
+      </div>
+    </div>
+    <div class="placeBar" id="placeBar">Tap the floor to place your rack. Tap outside the shop or press menu to cancel — no money will be charged until the rack is placed.</div>
+  </main>
+  <nav class="tray">
+    <button id="use">⬆ Interact</button>
+    <div class="tgrid">
+      <div class="dpad">
+        <span></span><button data-dir="up">▲</button><span></span>
+        <button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button>
+      </div>
+      <div class="acts">
+        <button id="btnPC">💻 Computer</button>
+        <button id="btnSales">💰 Sales</button>
+        <button id="btnStock">📦 Stock</button>
+        <button id="btnCust">👥 Customers</button>
+        <button id="btnSkill">⭐ Skills</button>
+        <button id="btnLog">📋 Log</button>
+      </div>
+    </div>
+  </nav>
+</div>
+
+<div class="ov" id="ov">
+  <div class="modal">
+    <div class="mh"><h2 id="mt">Panel</h2><button id="mx">✕</button></div>
+    <div class="mb" id="mb"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const G = document.getElementById('game');
+const C = G.getContext('2d');
+const $ = id => document.getElementById(id);
+const ui = {
+  stats:$('stats'), hud:$('hud'), ov:$('ov'), mt:$('mt'), mb:$('mb'),
+  cam:$('camBox'), camBtn:$('camBtn'), placeBar:$('placeBar')
+};
+
+const SAVE_KEY = 'panel_pages_full_index_v1';
+const CAMS = ['NE','E','SE','S','SW','W','NW','N'];
+const TW = 56, TH = 30;
+let ghostTile = null;
+let popupSeed = 0;
+let customerSeed = 0;
+
+const SHOP_SIZES = [
+  {w:10,h:8,name:'Tiny Studio',cost:0},
+  {w:14,h:10,name:'Small Shop',cost:800},
+  {w:18,h:13,name:'Mid-size Store',cost:2200},
+  {w:22,h:16,name:'Large Store',cost:4800}
+];
+
+const RACKS = {
+  spinner:{name:'Spinner Rack',price:100,cap:12,w:1,h:1,type:'spinner'},
+  wall:{name:'Wall Shelf',price:160,cap:20,w:2,h:1,type:'shelf'},
+  manga:{name:'Manga Shelf',price:190,cap:24,w:1,h:2,type:'bookshelf'},
+  long:{name:'Long Shelf',price:280,cap:35,w:3,h:1,type:'long'},
+  glass:{name:'Display Case',price:240,cap:8,w:1,h:1,type:'case'}
+};
+
+const COMICS = {
+  superhero:{name:'Superhero Monthly',buy:3,sell:7,genre:'Action'},
+  horror:{name:'Midnight Scream',buy:3,sell:7,genre:'Horror'},
+  scifi:{name:'Galactic Void',buy:3,sell:7,genre:'Sci-Fi'},
+  fantasy:{name:'Dragon Realm',buy:3,sell:6,genre:'Fantasy'},
+  indie:{name:'Slice of Life',buy:2,sell:5,genre:'Indie'},
+  manga:{name:'Shonen Blast',buy:4,sell:9,genre:'Manga'},
+  noir:{name:'Dark City Noir',buy:4,sell:8,genre:'Noir'},
+  variant:{name:'Variant Cover #1',buy:15,sell:30,genre:'Collectible'}
+};
+
+function emptyStock(){
+  const out = {};
+  Object.keys(COMICS).forEach(k => out[k] = 0);
+  return out;
+}
+
+function freshState(){
+  return {
+    cam:0,
+    shopSize:0,
+    open:true,
+    player:{x:5,y:5},
+    cash:500,
+    day:1,
+    revenueToday:0,
+    totalRevenue:0,
+    salesToday:0,
+    totalSales:0,
+    storeCap:60,
+    stock:emptyStock(),
+    floor:emptyStock(),
+    racks:[],
+    customers:[],
+    popups:[],
+    pendingRack:null,
+    skills:{sales:0,stocking:0,ordering:0},
+    log:[
+      'Welcome to Panel & Pages.',
+      'Use the Computer button to order your first rack.',
+      'Then stock comics, flip the sign to OPEN, and let shoppers come in.'
+    ]
+  };
+}
+
+function merge(a,b){
+  for(const k in b){
+    if(a[k] && typeof a[k] === 'object' && !Array.isArray(a[k]) && b[k] && typeof b[k] === 'object' && !Array.isArray(b[k])) merge(a[k], b[k]);
+    else a[k] = b[k];
+  }
+  return a;
+}
+
+let S;
+try{ S = merge(freshState(), JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); }
+catch(e){ S = freshState(); }
+
+let keys = {};
+let placing = null;
+let lastTime = performance.now();
+let anim = {vx:S.player.x, vy:S.player.y, moving:false, dir:'down', wt:0};
+let customerSpawnClock = 0;
+
+function save(){ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }
+function addLog(t){ S.log = [t].concat(S.log).slice(0,40); save(); }
+function xp(skill, amt){ S.skills[skill] = (S.skills[skill]||0) + amt; }
+function level(x){ let l = 1; while(x >= Math.floor(40*Math.pow(l+1,1.52))) l++; return l; }
+function shopW(){ return SHOP_SIZES[S.shopSize||0].w; }
+function shopH(){ return SHOP_SIZES[S.shopSize||0].h; }
+function totalStock(){ return Object.values(S.stock).reduce((a,b)=>a+(+b||0),0); }
+function totalFloor(){ return Object.values(S.floor).reduce((a,b)=>a+(+b||0),0); }
+function floorCap(){ return S.racks.reduce((a,r)=>a + (RACKS[r.id] ? RACKS[r.id].cap : 0), 0); }
+function salePrice(k){ return COMICS[k].sell; }
+function bank(amount){
+  S.cash += amount;
+  S.revenueToday += amount;
+  S.totalRevenue += amount;
+  S.salesToday += 1;
+  S.totalSales += 1;
+}
+function pushPopup(x,y,text,color){
+  S.popups.push({id:++popupSeed,x,y,text,color:color||'#3fb950',life:1.3,max:1.3});
+}
+function doorTile(){ return {x:Math.floor(shopW()/2), y:1}; }
+function signTile(){ const d = doorTile(); return {x:Math.min(shopW()-2, d.x+1), y:2}; }
+
+function resize(){
+  const r = G.getBoundingClientRect();
+  if(r.width > 1 && r.height > 1){ G.width = r.width|0; G.height = r.height|0; }
+}
+window.addEventListener('resize', resize);
+if(window.ResizeObserver) new ResizeObserver(resize).observe(G);
+resize();
+
+function basis(){
+  const d = {
+    N:[[1,0],[0,-1],'s'], NE:[[1,-1],[-1,-1],'i'], E:[[0,1],[1,0],'s'], SE:[[1,1],[1,-1],'i'],
+    S:[[-1,0],[0,1],'s'], SW:[[-1,1],[1,1],'i'], W:[[0,-1],[-1,0],'s'], NW:[[-1,-1],[-1,1],'i']
+  }[CAMS[S.cam]];
+  const norm = v => { const m = Math.hypot(v[0],v[1]) || 1; return [v[0]/m,v[1]/m]; };
+  return {r:norm(d[0]), u:norm(d[1]), iso:d[2]==='i'};
+}
+
+function wp(wx, wy, wz=0){
+  const b = basis();
+  const lx = wx - anim.vx, ly = wy - anim.vy;
+  const sx = lx*b.r[0] + ly*b.r[1];
+  const sy = lx*b.u[0] + ly*b.u[1];
+  let px, py;
+  if(b.iso){ px = sx*TW*.52; py = -sy*TH*.72 - wz*24; }
+  else { px = sx*48; py = -sy*40 - wz*24; }
+  return {x:px + G.width/2, y:py + G.height/2 + 26};
+}
+function tcorners(tx,ty){ return [wp(tx,ty), wp(tx+1,ty), wp(tx+1,ty+1), wp(tx,ty+1)]; }
+function centerOf(e,z=0){ return wp(e.x+(e.w||1)/2, e.y+(e.h||1)/2, z); }
+function pfill(pts,f,s,lw){
+  C.beginPath(); C.moveTo(pts[0].x, pts[0].y); for(let i=1;i<pts.length;i++) C.lineTo(pts[i].x, pts[i].y); C.closePath();
+  C.fillStyle = f; C.fill();
+  if(s){ C.strokeStyle=s; C.lineWidth=lw||1; C.stroke(); }
+}
+function ellipse(x,y,rx,ry,f,a=1){ C.globalAlpha=a; C.beginPath(); C.ellipse(x,y,rx,ry,0,0,Math.PI*2); C.fillStyle=f; C.fill(); C.globalAlpha=1; }
+
+function screenToTile(sx,sy){
+  const b = basis();
+  const dx = sx - G.width/2, dy = sy - G.height/2 - 26;
+  let tx,ty;
+  if(b.iso){
+    const a=b.r[0]*TW*.52, bb=b.r[1]*TW*.52, cc=-b.u[0]*TH*.72, dd=-b.u[1]*TH*.72;
+    const det = a*dd - bb*cc;
+    if(Math.abs(det) < .001) return null;
+    const lx = (dx*dd - bb*dy)/det, ly = (a*dy - dx*cc)/det;
+    tx = Math.floor(lx + anim.vx); ty = Math.floor(ly + anim.vy);
+  } else {
+    const a=b.r[0]*48, bb=b.r[1]*48, cc=-b.u[0]*40, dd=-b.u[1]*40;
+    const det = a*dd - bb*cc;
+    if(Math.abs(det) < .001) return null;
+    const lx = (dx*dd - bb*dy)/det, ly = (a*dy - dx*cc)/det;
+    tx = Math.floor(lx + anim.vx); ty = Math.floor(ly + anim.vy);
+  }
+  return {tx,ty};
+}
+
+function fixedEntities(){
+  const d = doorTile();
+  const s = signTile();
+  return [
+    {id:'door',kind:'door',name:'Front Door',x:d.x,y:d.y,w:1,h:1,solid:false},
+    {id:'sign',kind:'sign',name:S.open ? 'Open / Closed Sign' : 'Open / Closed Sign',x:s.x,y:s.y,w:1,h:1,solid:false}
+  ];
+}
+function rackEntities(){
+  return S.racks.map((r,i) => ({id:'rack_'+i,kind:'rack',rackIdx:i,rackId:r.id,name:RACKS[r.id].name,x:r.x,y:r.y,w:RACKS[r.id].w,h:RACKS[r.id].h,solid:true}));
+}
+function allEntities(){ return fixedEntities().concat(rackEntities()); }
+function inWalkableInterior(tx,ty,w=1,h=1){ return tx>=1 && ty>=2 && tx+w<=shopW()-1 && ty+h<=shopH()-1; }
+function inShop(tx,ty,w=1,h=1){ return tx>=0 && ty>=1 && tx+w<=shopW() && ty+h<=shopH(); }
+
+function rackCollides(tx,ty,w,h,skipIdx){
+  const blockers = S.racks.map((r,i) => i===skipIdx ? null : {x:r.x,y:r.y,w:RACKS[r.id].w,h:RACKS[r.id].h}).filter(Boolean);
+  return blockers.some(e => tx < e.x+e.w && tx+w > e.x && ty < e.y+e.h && ty+h > e.y);
+}
+
+function solidAt(x,y,ignoreCustomerId){
+  if(x < .25 || y < 1.1 || x > shopW()-.25 || y > shopH()-.25) return true;
+  for(const e of rackEntities()){
+    if(x > e.x-.1 && x < e.x+e.w+.1 && y > e.y-.1 && y < e.y+e.h+.1) return true;
+  }
+  for(const c of S.customers){
+    if(c.id === ignoreCustomerId) continue;
+    if(Math.hypot(x-c.x, y-c.y) < .28) return true;
+  }
+  return false;
+}
+
+function nearEntities(){
+  const px = S.player.x, py = S.player.y;
+  return allEntities().filter(e => {
+    const cx = Math.max(e.x, Math.min(px, e.x+(e.w||1)));
+    const cy = Math.max(e.y, Math.min(py, e.y+(e.h||1)));
+    return Math.hypot(px-cx, py-cy) < 1.4;
+  });
+}
+
+function browseSpotsForRack(r){
+  const out = [];
+  const w = RACKS[r.id].w, h = RACKS[r.id].h;
+  const candidates = [];
+  for(let x=r.x; x<r.x+w; x++) candidates.push({x:x+.5,y:r.y-.4});
+  for(let x=r.x; x<r.x+w; x++) candidates.push({x:x+.5,y:r.y+h+.4});
+  for(let y=r.y; y<r.y+h; y++) candidates.push({x:r.x-.4,y:y+.5});
+  for(let y=r.y; y<r.y+h; y++) candidates.push({x:r.x+w+.4,y:y+.5});
+  for(const p of candidates){
+    if(p.x >= 1.2 && p.y >= 2.2 && p.x <= shopW()-1.2 && p.y <= shopH()-1.2 && !solidAt(p.x,p.y)) out.push(p);
+  }
+  return out;
+}
+
+function chooseBrowseSpot(){
+  if(!S.racks.length) return {x:shopW()/2, y:shopH()/2};
+  const rack = S.racks[Math.floor(Math.random()*S.racks.length)];
+  const opts = browseSpotsForRack(rack);
+  if(opts.length) return opts[Math.floor(Math.random()*opts.length)];
+  return {x:Math.max(1.5,Math.min(shopW()-1.5,rack.x+.5)), y:Math.max(2.5,Math.min(shopH()-1.5,rack.y+.5))};
+}
+
+function spawnCustomer(){
+  const d = doorTile();
+  const id = ++customerSeed;
+  const spot = chooseBrowseSpot();
+  S.customers.push({
+    id,
+    x:d.x+.5, y:1.25,
+    tx:spot.x, ty:spot.y,
+    speed:1.15 + Math.random()*.25,
+    state:'entering',
+    wait:0,
+    hold:null,
+    paid:0,
+    thoughts:'',
+    browseCount:0
+  });
+}
+
+function moveActor(actor, dt, ignoreId){
+  const dx = actor.tx - actor.x, dy = actor.ty - actor.y;
+  const dist = Math.hypot(dx,dy);
+  if(dist < .03) return true;
+  const step = Math.min(dist, actor.speed * dt);
+  const vx = dx / (dist || 1) * step;
+  const vy = dy / (dist || 1) * step;
+  const nx = actor.x + vx, ny = actor.y + vy;
+  if(!solidAt(nx, actor.y, ignoreId)) actor.x = nx;
+  if(!solidAt(actor.x, ny, ignoreId)) actor.y = ny;
+  return Math.hypot(actor.tx - actor.x, actor.ty - actor.y) < .08;
+}
+
+function availableFloorTitles(){ return Object.keys(COMICS).filter(k => (S.floor[k]||0) > 0); }
+
+function customerBuy(customer){
+  const options = availableFloorTitles();
+  if(!options.length) return false;
+  const chosen = options[Math.floor(Math.random()*options.length)];
+  const price = salePrice(chosen);
+  S.floor[chosen]--;
+  bank(price);
+  xp('sales', 8);
+  customer.hold = chosen;
+  customer.paid = price;
+  customer.thoughts = COMICS[chosen].name;
+  pushPopup(customer.x, customer.y-0.7, '+'+ '$' + price, '#4ade80');
+  addLog('Customer bought ' + COMICS[chosen].name + ' for $' + price + '.');
+  return true;
+}
+
+function updateCustomers(dt){
+  const stockAvailable = totalFloor() > 0;
+
+  if(S.open && stockAvailable && S.racks.length){
+    customerSpawnClock += dt;
+    const maxCustomers = Math.min(5, 1 + S.racks.length);
+    const spawnEvery = Math.max(1.6, 5.5 - S.racks.length*.35);
+    if(S.customers.length < maxCustomers && customerSpawnClock >= spawnEvery){
+      customerSpawnClock = 0;
+      spawnCustomer();
+    }
+  } else {
+    customerSpawnClock = 0;
+  }
+
+  for(const c of S.customers){
+    if((!S.open || !stockAvailable) && c.state !== 'leaving' && c.state !== 'outside'){
+      const d = doorTile();
+      c.state = 'leaving';
+      c.tx = d.x + .5;
+      c.ty = 1.25;
+    }
+
+    if(c.state === 'entering'){
+      if(moveActor(c, dt, c.id)){
+        c.state = 'browsing';
+        c.wait = .8 + Math.random()*1.6;
+        c.thoughts = ['Hmm…','Looking…','What is good?','Checking…'][Math.floor(Math.random()*4)];
+      }
+    }
+    else if(c.state === 'browsing'){
+      c.wait -= dt;
+      if(c.wait <= 0){
+        const canBuy = stockAvailable && Math.random() < 0.78;
+        if(canBuy && customerBuy(c)){
+          c.state = 'leaving';
+          const d = doorTile();
+          c.tx = d.x + .5;
+          c.ty = 1.25;
+        } else {
+          c.browseCount++;
+          if(c.browseCount >= 2 || !stockAvailable){
+            c.state = 'leaving';
+            const d = doorTile();
+            c.tx = d.x + .5;
+            c.ty = 1.25;
+            c.thoughts = 'Maybe later';
+          } else {
+            const spot = chooseBrowseSpot();
+            c.state = 'entering';
+            c.tx = spot.x;
+            c.ty = spot.y;
+            c.thoughts = 'Next shelf';
+          }
+        }
+      }
+    }
+    else if(c.state === 'leaving'){
+      if(moveActor(c, dt, c.id)) c.state = 'outside';
+    }
+  }
+
+  S.customers = S.customers.filter(c => c.state !== 'outside');
+}
+
+function updatePopups(dt){
+  for(const p of S.popups){ p.life -= dt; p.y -= dt*.55; }
+  S.popups = S.popups.filter(p => p.life > 0);
+}
+
+function updatePlayer(dt){
+  if(placing) return;
+  let dx=0, dy=0;
+  if(keys.up || keys.ArrowUp || keys.w) dy--;
+  if(keys.down || keys.ArrowDown || keys.s) dy++;
+  if(keys.left || keys.ArrowLeft || keys.a) dx--;
+  if(keys.right || keys.ArrowRight || keys.d) dx++;
+  anim.moving = !!(dx || dy);
+  if(anim.moving){
+    if(Math.abs(dx) >= Math.abs(dy)) anim.dir = dx > 0 ? 'right' : 'left';
+    else anim.dir = dy < 0 ? 'up' : 'down';
+    const m = Math.hypot(dx,dy) || 1; dx/=m; dy/=m;
+    const b = basis();
+    const wx = b.r[0]*dx + b.u[0]*(-dy);
+    const wy = b.r[1]*dx + b.u[1]*(-dy);
+    const speed = 3.2 * dt;
+    const nx = S.player.x + wx*speed;
+    const ny = S.player.y + wy*speed;
+    if(!solidAt(nx, S.player.y)) S.player.x = nx;
+    if(!solidAt(S.player.x, ny)) S.player.y = ny;
+    anim.wt += dt*6;
+  }
+  anim.vx += (S.player.x - anim.vx) * 8 * dt;
+  anim.vy += (S.player.y - anim.vy) * 8 * dt;
+}
+
+function update(dt){
+  updatePlayer(dt);
+  updateCustomers(dt);
+  updatePopups(dt);
+}
+
+function tileColor(tx,ty){
+  if(tx < 0 || ty < 1 || tx >= shopW() || ty >= shopH()) return '#090704';
+  const a = (tx + ty) % 2;
+  return a ? '#6a4016' : '#7b4b18';
+}
+
+function drawWalls(){
+  const sw = shopW(), sh = shopH();
+  const leftTop = wp(0,1,1.8), rightTop = wp(sw,1,1.8), leftBottom = wp(0,1,0), rightBottom = wp(sw,1,0);
+  pfill([leftTop,rightTop,rightBottom,leftBottom],'#2b1206','#00000055');
+  const signPos = wp(sw/2,1,2.05);
+  C.fillStyle = '#f5c842';
+  C.font = 'bold 13px system-ui';
+  C.textAlign = 'center';
+  C.fillText('PANEL & PAGES', signPos.x, signPos.y);
+  C.fillStyle = '#aaa';
+  C.font = '9px system-ui';
+  C.fillText(SHOP_SIZES[S.shopSize].name, signPos.x, signPos.y + 13);
+}
+
+function isoBox(x,y,w,h,height,front,side,top,stroke){
+  const tl = wp(x,y,height), tr = wp(x+w,y,height), br = wp(x+w,y+h,height), bl = wp(x,y+h,height);
+  const bl0 = wp(x,y+h,0), br0 = wp(x+w,y+h,0), tr0 = wp(x+w,y,0);
+  pfill([bl,br,br0,bl0], front, stroke||'#00000022');
+  pfill([br,tr,tr0,br0], side, stroke||'#00000033');
+  pfill([tl,tr,br,bl], top, '#ffffff10');
+  return {tl,tr,br,bl};
+}
+
+function drawDoor(e){
+  const p = centerOf(e,.02);
+  const shadow = centerOf(e,0);
+  ellipse(shadow.x, shadow.y+10, 14, 6, '#000', .22);
+  C.fillStyle = '#9c6a45';
+  C.fillRect(p.x-8, p.y-24, 16, 26);
+  C.fillStyle = '#c78f62';
+  C.fillRect(p.x-6, p.y-22, 12, 22);
+  C.strokeStyle = '#623c1e';
+  C.lineWidth = 1.3;
+  C.strokeRect(p.x-6, p.y-22, 12, 22);
+  C.fillStyle = '#edcaa0';
+  C.beginPath(); C.arc(p.x+3.5, p.y-10, 1.7, 0, Math.PI*2); C.fill();
+}
+
+function drawSign(e){
+  const p = centerOf(e,.45);
+  ellipse(p.x, p.y+12, 18, 7, '#000', .18);
+  C.fillStyle = '#79431d';
+  C.fillRect(p.x-2, p.y-5, 4, 16);
+  C.fillStyle = S.open ? '#2f8f4f' : '#9a2c2c';
+  C.fillRect(p.x-26, p.y-18, 52, 22);
+  C.strokeStyle = '#e7cd7a';
+  C.lineWidth = 2;
+  C.strokeRect(p.x-26, p.y-18, 52, 22);
+  C.fillStyle = '#f4f1d7';
+  C.font = 'bold 10px system-ui';
+  C.textAlign = 'center';
+  C.fillText(S.open ? 'OPEN' : 'CLOSED', p.x, p.y-3);
+}
+
+function drawShelfRack(e, ghostAlpha){
+  const x = e.x, y = e.y, w = e.w||1, h = e.h||1;
+  if(ghostAlpha !== undefined) C.globalAlpha = ghostAlpha;
+  const body = isoBox(x,y,w,h,.82,'#c89b6d','#a97745','#dcb891','#6d4a28');
+  const tl=body.tl,tr=body.tr,br=body.br,bl=body.bl;
+
+  C.strokeStyle = '#6f4828';
+  C.lineWidth = 2;
+  C.beginPath();
+  C.moveTo(tl.x, tl.y); C.lineTo(bl.x, bl.y);
+  C.moveTo(tr.x, tr.y); C.lineTo(br.x, br.y);
+  C.stroke();
+
+  const shelfRows = (h >= 2) ? 3 : 2;
+  for(let i=1;i<=shelfRows;i++){
+    const p = i/(shelfRows+1);
+    const lx = tl.x + (bl.x-tl.x)*p;
+    const ly = tl.y + (bl.y-tl.y)*p;
+    const rx = tr.x + (br.x-tr.x)*p;
+    const ry = tr.y + (br.y-tr.y)*p;
+    C.strokeStyle = '#875831';
+    C.lineWidth = 3;
+    C.beginPath(); C.moveTo(lx,ly); C.lineTo(rx,ry); C.stroke();
+  }
+
+  const stocked = totalFloor() > 0 && ghostAlpha === undefined;
+  if(stocked){
+    const cols = ['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#1abc9c','#e67e22'];
+    const booksPerRow = Math.max(3, Math.min(9, Math.floor((w+h)*2.3)));
+    for(let row=1; row<=shelfRows; row++){
+      const p = row/(shelfRows+1);
+      const lx = tl.x + (bl.x-tl.x)*p;
+      const ly = tl.y + (bl.y-tl.y)*p;
+      const rx = tr.x + (br.x-tr.x)*p;
+      const ry = tr.y + (br.y-tr.y)*p;
+      for(let b=0;b<booksPerRow;b++){
+        const t = (b+.5)/booksPerRow;
+        const bx = lx + (rx-lx)*t;
+        const by = ly + (ry-ly)*t;
+        const bw = 5, bh = 12;
+        C.fillStyle = cols[(b+row)%cols.length];
+        C.fillRect(bx-bw/2, by-bh+2, bw, bh);
+        C.fillStyle = '#111';
+        C.fillRect(bx-bw/2, by-bh+2, 1, bh);
+      }
+    }
+  } else if(ghostAlpha === undefined) {
+    const p = centerOf(e,.82);
+    C.fillStyle = '#f5e6d2';
+    C.font = 'bold 10px system-ui';
+    C.textAlign = 'center';
+    C.fillText('EMPTY', p.x, p.y-4);
+  }
+
+  if(ghostAlpha === undefined){
+    const p = centerOf(e,0);
+    C.strokeStyle = '#f5c84255';
+    C.lineWidth = 1.3;
+    C.beginPath(); C.ellipse(p.x, p.y+8, 24+e.w*3, 8+e.h*2, 0, 0, Math.PI*2); C.stroke();
+
+    const nearby = nearEntities().some(n => n.id === e.id);
+    if(nearby){
+      const c = centerOf(e,.92);
+      C.fillStyle = '#f5c842';
+      C.font = 'bold 9px system-ui';
+      C.textAlign = 'center';
+      C.fillText(RACKS[e.rackId].name, c.x, c.y-6);
+    }
+  }
+  if(ghostAlpha !== undefined) C.globalAlpha = 1;
+}
+
+function drawGlassRack(e, ghostAlpha){
+  if(ghostAlpha !== undefined) C.globalAlpha = ghostAlpha;
+  isoBox(e.x,e.y,e.w,e.h,.72,'#41515c','#2f3d47','#6f8a9c','#3a4b57');
+  const p = centerOf(e,.8);
+  C.fillStyle = 'rgba(200,235,255,.25)';
+  C.fillRect(p.x-13, p.y-20, 26, 16);
+  C.strokeStyle = '#bde7ff88';
+  C.strokeRect(p.x-13, p.y-20, 26, 16);
+  if(totalFloor() > 0 && ghostAlpha === undefined){
+    C.fillStyle = '#ffdc73';
+    C.beginPath(); C.arc(p.x, p.y-10, 5, 0, Math.PI*2); C.fill();
+  }
+  if(ghostAlpha !== undefined) C.globalAlpha = 1;
+}
+
+function drawSpinnerRack(e, ghostAlpha){
+  if(ghostAlpha !== undefined) C.globalAlpha = ghostAlpha;
+  const p = centerOf(e,.86);
+  ellipse(p.x,p.y+11,18,7,'#000',.18);
+  C.strokeStyle = '#5d3b1f'; C.lineWidth = 4;
+  C.beginPath(); C.moveTo(p.x, p.y-18); C.lineTo(p.x, p.y+6); C.stroke();
+  C.strokeStyle = '#b78454'; C.lineWidth = 3;
+  C.beginPath(); C.moveTo(p.x-16, p.y-12); C.lineTo(p.x+16, p.y-12); C.stroke();
+  C.beginPath(); C.moveTo(p.x-14, p.y-3); C.lineTo(p.x+14, p.y-3); C.stroke();
+  if(totalFloor() > 0 && ghostAlpha === undefined){
+    const cols=['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#1abc9c'];
+    for(let i=0;i<6;i++){
+      C.fillStyle = cols[i%cols.length];
+      C.fillRect(p.x-15+i*5, p.y-20+(i%2?8:0), 4, 9);
+    }
+  } else if(ghostAlpha === undefined){
+    C.fillStyle='#e7d7c4'; C.font='bold 9px system-ui'; C.textAlign='center'; C.fillText('EMPTY',p.x,p.y-22);
+  }
+  if(ghostAlpha !== undefined) C.globalAlpha = 1;
+}
+
+function drawRack(e, ghostAlpha){
+  const rd = RACKS[e.rackId];
+  if(!rd) return;
+  if(rd.type === 'case') drawGlassRack(e, ghostAlpha);
+  else if(rd.type === 'spinner') drawSpinnerRack(e, ghostAlpha);
+  else drawShelfRack(e, ghostAlpha);
+}
+
+function drawPerson(x,y,shirt,dir,carry,thought){
+  const p = wp(x,y,0);
+  const bob = Math.sin((performance.now()/180)+(x+y)*2) * 1.2;
+  ellipse(p.x,p.y+14,15,6,'#000',.24);
+  C.save();
+  C.translate(p.x,p.y+bob);
+  C.fillStyle = '#324153';
+  C.fillRect(-6,1,5,12); C.fillRect(1,1,5,12);
+  C.fillStyle = '#111';
+  C.fillRect(-7,12,7,3); C.fillRect(0,12,7,3);
+  C.fillStyle = shirt;
+  C.beginPath(); C.roundRect(-8,-18,16,20,4); C.fill();
+  C.fillStyle = '#f5c842';
+  C.beginPath(); C.roundRect(-4,-15,8,17,2); C.fill();
+  C.fillStyle = '#f0c080';
+  C.beginPath(); C.ellipse(0,-26,8,10,0,0,Math.PI*2); C.fill();
+  C.fillStyle = '#3d2400';
+  C.beginPath(); C.ellipse(0,-32,8,4,0,Math.PI,Math.PI*2); C.fill();
+  C.fillStyle = '#1f2937';
+  C.beginPath(); C.arc(-2.5,-26,1.2,0,Math.PI*2); C.fill();
+  C.beginPath(); C.arc(2.5,-26,1.2,0,Math.PI*2); C.fill();
+  if(carry){
+    C.fillStyle = '#f7f0d0';
+    C.fillRect(8,-16,10,12);
+    C.strokeStyle = '#c44'; C.lineWidth = 2;
+    C.beginPath(); C.moveTo(10,-13); C.lineTo(16,-13); C.stroke();
+  }
+  if(thought){
+    C.fillStyle='rgba(0,0,0,.55)';
+    C.beginPath(); C.roundRect(-20,-50,40,16,6); C.fill();
+    C.strokeStyle='rgba(255,255,255,.18)'; C.lineWidth=1; C.stroke();
+    C.fillStyle='#fff3b0'; C.font='bold 9px system-ui'; C.textAlign='center'; C.fillText(thought,0,-39);
+  }
+  C.restore();
+}
+
+function drawPlayer(){ drawPerson(S.player.x,S.player.y,'#b45309',anim.dir,null,null); }
+function drawCustomer(c){
+  const shirts=['#2563eb','#be123c','#059669','#7c3aed','#ea580c'];
+  drawPerson(c.x,c.y,shirts[c.id%shirts.length],'down',c.hold,c.state==='browsing'?c.thoughts:'');
+}
+
+function drawGhost(){
+  if(!placing || !ghostTile) return;
+  const rd = RACKS[placing.rackId];
+  if(!rd) return;
+  const tx = ghostTile.tx, ty = ghostTile.ty;
+  const valid = inWalkableInterior(tx,ty,rd.w,rd.h) && !rackCollides(tx,ty,rd.w,rd.h);
+  drawRack({x:tx,y:ty,w:rd.w,h:rd.h,rackId:placing.rackId}, valid ? .6 : .28);
+  const tl = wp(tx,ty,.02), tr = wp(tx+rd.w,ty,.02), br = wp(tx+rd.w,ty+rd.h,.02), bl = wp(tx,ty+rd.h,.02);
+  C.strokeStyle = valid ? '#3fb950' : '#ff6b6b'; C.lineWidth = 2;
+  C.beginPath(); C.moveTo(tl.x,tl.y); C.lineTo(tr.x,tr.y); C.lineTo(br.x,br.y); C.lineTo(bl.x,bl.y); C.closePath(); C.stroke();
+}
+
+function depthOfEntity(e){ return centerOf(e,0).y + (e.kind === 'rack' ? 16 : 8); }
+
+function drawPopups(){
+  for(const p of S.popups){
+    const scr = wp(p.x,p.y,1.2);
+    C.globalAlpha = Math.max(0, p.life / p.max);
+    C.fillStyle = p.color;
+    C.font = 'bold 20px system-ui';
+    C.textAlign = 'center';
+    C.fillText(p.text, scr.x, scr.y);
+    C.globalAlpha = 1;
+  }
+}
+
+function draw(){
+  C.clearRect(0,0,G.width,G.height);
+
+  const sw=shopW(), sh=shopH();
+  for(let ty=0; ty<=sh+1; ty++){
+    for(let tx=-1; tx<=sw; tx++){
+      const inside = tx>=0 && ty>=1 && tx<sw && ty<sh;
+      pfill(tcorners(tx,ty), inside ? tileColor(tx,ty) : '#060402', inside ? '#00000015' : null);
+    }
+  }
+
+  drawWalls();
+
+  const interactionRing = nearEntities();
+  for(const e of interactionRing){
+    const p = centerOf(e,0);
+    C.strokeStyle = '#f5c84266'; C.lineWidth = 2;
+    C.beginPath(); C.ellipse(p.x,p.y+10,22,8,0,0,Math.PI*2); C.stroke();
+  }
+
+  const drawList = [];
+  for(const e of allEntities()) drawList.push({type:'entity',obj:e,d:depthOfEntity(e)});
+  for(const c of S.customers) drawList.push({type:'customer',obj:c,d:wp(c.x,c.y,0).y + 10});
+  drawList.push({type:'player',obj:S.player,d:wp(S.player.x,S.player.y,0).y + 12});
+  drawList.sort((a,b)=>a.d-b.d);
+
+  for(const item of drawList){
+    const e = item.obj;
+    if(item.type === 'player') drawPlayer();
+    else if(item.type === 'customer') drawCustomer(e);
+    else if(e.kind === 'door') drawDoor(e);
+    else if(e.kind === 'sign') drawSign(e);
+    else if(e.kind === 'rack') drawRack(e);
+  }
+
+  drawGhost();
+  drawPopups();
+
+  if(!S.racks.length && !placing){
+    const p = wp(sw/2, sh/2, 0);
+    C.fillStyle = 'rgba(245,200,66,.8)';
+    C.font = 'bold 16px system-ui'; C.textAlign = 'center';
+    C.fillText('Use the computer to order your first rack.', p.x, p.y+6);
+  }
+}
+
+function renderUI(){
+  const displayed = floorCap() ? totalFloor() + '/' + floorCap() + ' displayed' : 'No racks';
+  ui.stats.innerHTML = '' +
+    '<span class="pill">$' + S.cash + '</span>' +
+    '<span class="pill">Day ' + S.day + '</span>' +
+    '<span class="pill ' + (S.open ? 'good' : 'bad') + '">' + (S.open ? 'OPEN' : 'CLOSED') + '</span>' +
+    '<span class="pill good">' + displayed + '</span>' +
+    '<span class="pill">' + SHOP_SIZES[S.shopSize].name + '</span>';
+
+  ui.hud.innerHTML =
+    '<div class="hudpill"><strong>' + S.racks.length + '</strong> rack' + (S.racks.length!==1?'s':'') + '</div>' +
+    '<div class="hudpill"><strong>' + S.customers.length + '</strong> shopper' + (S.customers.length!==1?'s':'') + ' in store</div>';
+  ui.camBtn.textContent = 'Cam ' + CAMS[S.cam];
+}
+
+function loop(now){
+  const dt = Math.min(.05, (now - lastTime)/1000); lastTime = now;
+  update(dt);
+  draw();
+  renderUI();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function modal(title, html){ ui.ov.classList.add('show'); ui.mt.textContent = title; ui.mb.innerHTML = html; }
+function closeModal(){ ui.ov.classList.remove('show'); }
+$('mx').onclick = closeModal;
+window.closeModal = closeModal;
+
+function cancelPlacing(){
+  if(placing){ addLog('Rack placement cancelled. No money was charged.'); }
+  placing = null;
+  ghostTile = null;
+  G.classList.remove('placing');
+  ui.placeBar.classList.remove('show');
+}
+
+function startPlacing(rackId){
+  placing = {rackId};
+  G.classList.add('placing');
+  ui.placeBar.classList.add('show');
+  closeModal();
+}
+window.startPlacing = startPlacing;
+
+function commitPlace(tx,ty){
+  if(!placing) return;
+  const rd = RACKS[placing.rackId];
+  if(!inWalkableInterior(tx,ty,rd.w,rd.h)){
+    addLog('That spot is not valid for a rack.');
+    return;
+  }
+  if(rackCollides(tx,ty,rd.w,rd.h)){
+    addLog('That spot is blocked by another rack.');
+    return;
+  }
+  if(S.cash < rd.price){
+    addLog('You no longer have enough cash for that rack.');
+    cancelPlacing();
+    return;
+  }
+  S.cash -= rd.price;
+  S.racks.push({id:placing.rackId,x:tx,y:ty});
+  addLog('Placed ' + rd.name + ' for $' + rd.price + '.');
+  save();
+  placing = null;
+  ghostTile = null;
+  G.classList.remove('placing');
+  ui.placeBar.classList.remove('show');
+}
+
+G.addEventListener('pointermove', e => {
+  if(!placing) return;
+  const r = G.getBoundingClientRect();
+  ghostTile = screenToTile(e.clientX-r.left, e.clientY-r.top);
+});
+G.addEventListener('pointerdown', e => {
+  if(!placing) return;
+  const r = G.getBoundingClientRect();
+  const t = screenToTile(e.clientX-r.left, e.clientY-r.top);
+  if(!t || !inShop(t.tx,t.ty)){ cancelPlacing(); return; }
+  commitPlace(t.tx,t.ty);
+});
+
+function computerPanel(tab='racks'){
+  const tabs = '<div class="tabs">' +
+    ['racks','comics','expand'].map(t => {
+      const names = {racks:'🗄 Racks', comics:'📚 Comics', expand:'🏗 Expand'};
+      return '<button class="'+(tab===t?'on':'')+'" onclick="computerPanel(\''+t+'\')">'+names[t]+'</button>';
+    }).join('') + '</div>';
+  let body = '';
+  if(tab === 'racks'){
+    body += '<div class="card"><b>Order fixtures</b><div class="sm">Money is only charged after the rack is successfully placed.</div></div>';
+    body += Object.keys(RACKS).map(id => {
+      const r = RACKS[id];
+      return '<div class="card"><b>'+r.name+'</b><div class="sm">Size '+r.w+'×'+r.h+' tiles | Capacity '+r.cap+'</div><div class="sm">Cost: $'+r.price+'</div><button '+(S.cash<r.price?'disabled':'')+' onclick="startPlacing(\''+id+'\')">Order & Place</button></div>';
+    }).join('');
+  }
+  if(tab === 'comics'){
+    body += '<div class="card"><b>Distribution order</b><div class="sm">Storage: '+totalStock()+'/'+S.storeCap+' | Floor: '+totalFloor()+'/'+floorCap()+'</div></div>';
+    body += Object.keys(COMICS).map(k => {
+      const c = COMICS[k], cost5 = c.buy*5, cost10 = c.buy*10;
+      return '<div class="card"><b>'+c.name+'</b><div class="sm">'+c.genre+' | Buy $'+c.buy+' / Sell $'+c.sell+'</div><div class="sm">Storage: '+S.stock[k]+' | Floor: '+S.floor[k]+'</div><button '+(S.cash<cost5 || totalStock()+5>S.storeCap?'disabled':'')+' onclick="orderComic(\''+k+'\',5)">Order 5 ($'+cost5+')</button> <button '+(S.cash<cost10 || totalStock()+10>S.storeCap?'disabled':'')+' onclick="orderComic(\''+k+'\',10)">Order 10 ($'+cost10+')</button></div>';
+    }).join('');
+  }
+  if(tab === 'expand'){
+    body += SHOP_SIZES.map((s,i) => {
+      const owned = i <= S.shopSize;
+      const current = i === S.shopSize;
+      const next = i === S.shopSize+1;
+      return '<div class="card"><b>'+s.name+(current?' <span class="tag">CURRENT</span>':'')+(owned&&!current?' <span class="tag">UNLOCKED</span>':'')+'</b><div class="sm">Floor '+s.w+'×'+s.h+'</div>' +
+      (s.cost?'<div class="sm">Cost: $'+s.cost+'</div>':'') +
+      (!owned?'<button '+(next && S.cash>=s.cost?'':'disabled')+' onclick="expandShop('+i+')">Expand</button>':'') +
+      '</div>';
+    }).join('');
+  }
+  modal('💻 Computer', tabs + body);
+}
+window.computerPanel = computerPanel;
+
+function orderComic(k,n){
+  const cost = COMICS[k].buy * n;
+  if(S.cash < cost) return addLog('Not enough cash.');
+  if(totalStock() + n > S.storeCap) return addLog('Storage is full.');
+  S.cash -= cost;
+  S.stock[k] += n;
+  xp('ordering', n*2);
+  addLog('Ordered ' + n + '× ' + COMICS[k].name + ' for $' + cost + '.');
+  save();
+  computerPanel('comics');
+}
+window.orderComic = orderComic;
+
+function expandShop(i){
+  const sz = SHOP_SIZES[i];
+  if(S.cash < sz.cost) return;
+  S.cash -= sz.cost;
+  S.shopSize = i;
+  S.player.x = Math.max(2, Math.min(shopW()-2, S.player.x));
+  S.player.y = Math.max(3, Math.min(shopH()-2, S.player.y));
+  anim.vx = S.player.x; anim.vy = S.player.y;
+  addLog('Expanded to ' + sz.name + '.');
+  save();
+  computerPanel('expand');
+}
+window.expandShop = expandShop;
+
+function stockPanel(){
+  if(!S.racks.length){
+    modal('📦 Stock','<div class="card">You need a rack first.<br><br><button onclick="computerPanel()">Open Computer</button></div>');
+    return;
+  }
+  const openSlots = Math.max(0, floorCap() - totalFloor());
+  const html = '<div class="card"><b>Stock room</b><div class="sm">Storage '+totalStock()+'/'+S.storeCap+' | Floor '+totalFloor()+'/'+floorCap()+' | Open display slots '+openSlots+'</div></div>' +
+  Object.keys(COMICS).map(k => {
+    const c = COMICS[k];
+    return '<div class="card"><b>'+c.name+'</b><div class="sm">Storage: '+S.stock[k]+' | On floor: '+S.floor[k]+'</div><button '+((S.stock[k]&&openSlots)?'':'disabled')+' onclick="putFloor(\''+k+'\',1)">→ 1</button> <button '+((S.stock[k]&&openSlots)?'':'disabled')+' onclick="putFloor(\''+k+'\',5)">→ 5</button> <button '+(S.floor[k]?'':'disabled')+' onclick="pullFloor(\''+k+'\',1)">← 1</button></div>';
+  }).join('');
+  modal('📦 Stock', html);
+}
+window.stockPanel = stockPanel;
+
+function putFloor(k,n){
+  const q = Math.min(n, S.stock[k], Math.max(0, floorCap()-totalFloor()));
+  if(!q) return addLog('No room on the sales floor.');
+  S.stock[k] -= q;
+  S.floor[k] += q;
+  xp('stocking', q*2);
+  addLog('Moved ' + q + '× ' + COMICS[k].name + ' to the shelf.');
+  save();
+  stockPanel();
+}
+function pullFloor(k,n){
+  const q = Math.min(n, S.floor[k], Math.max(0, S.storeCap-totalStock()));
+  if(!q) return;
+  S.floor[k] -= q;
+  S.stock[k] += q;
+  addLog('Pulled ' + q + '× ' + COMICS[k].name + ' back into storage.');
+  save();
+  stockPanel();
+}
+window.putFloor = putFloor;
+window.pullFloor = pullFloor;
+
+function salesPanel(){
+  const html = '<div class="cols2">' +
+    '<div class="card"><b>Today</b><div class="sm">Revenue</div><div class="mono good" style="font-size:1.25rem">$'+S.revenueToday+'</div><div class="sm">Sales: '+S.salesToday+'</div></div>' +
+    '<div class="card"><b>Lifetime</b><div class="sm">Revenue</div><div class="mono good" style="font-size:1.25rem">$'+S.totalRevenue+'</div><div class="sm">Sales: '+S.totalSales+'</div></div>' +
+    '</div>' +
+    '<div class="card"><b>How sales work now</b><div class="sm">Customers browse shelves automatically. If they like a comic, the money flashes over their head and is added directly to your cash.</div></div>';
+  modal('💰 Sales', html);
+}
+
+function customersPanel(){
+  const html = '<div class="card"><b>Shop status</b><div class="sm">The sign is currently <span class="'+(S.open?'good':'warn')+'">'+(S.open?'OPEN':'CLOSED')+'</span>.</div><div class="sm">Shoppers in store: '+S.customers.length+'</div><div class="sm">Shoppers only spawn when the store is open and at least one comic is on display.</div></div>' +
+  (S.customers.length ? S.customers.map(c => '<div class="card"><b>Shopper #'+c.id+'</b><div class="sm">State: '+c.state+'</div><div class="sm">'+(c.hold ? ('Holding: '+COMICS[c.hold].name) : (c.thoughts || 'Browsing'))+'</div></div>').join('') : '<div class="card">No shoppers are currently in the store.</div>');
+  modal('👥 Customers', html);
+}
+
+function skillsPanel(){
+  const d = {sales:'Improves overall shop experience.',stocking:'Represents your floor management experience.',ordering:'Represents your distributor experience.'};
+  modal('⭐ Skills', Object.entries(S.skills).map(([k,v]) => '<div class="card"><b>'+k.charAt(0).toUpperCase()+k.slice(1)+'</b> <span class="tag">Lv '+level(v)+'</span><div class="sm">'+d[k]+'</div><div class="sm">XP: '+v+'</div></div>').join(''));
+}
+
+function logPanel(){ modal('📋 Log', S.log.map(line => '<div class="card">'+line+'</div>').join('')); }
+
+function endDay(){
+  const rev = S.revenueToday, sales = S.salesToday;
+  S.day += 1;
+  S.revenueToday = 0;
+  S.salesToday = 0;
+  addLog('Ended day. Day ' + (S.day-1) + ' revenue was $' + rev + ' from ' + sales + ' sale' + (sales!==1?'s':'') + '.');
+  S.customers = [];
+  save();
+  modal('🌙 End Day', '<div class="card"><b>Day closed</b><div class="sm">Revenue: $'+rev+'</div><div class="sm">Sales: '+sales+'</div><div class="sm">Day '+S.day+' is ready.</div></div><button onclick="closeModal()">Continue</button>');
+}
+window.endDay = endDay;
+
+function toggleOpen(){
+  S.open = !S.open;
+  if(!S.open){
+    const d = doorTile();
+    for(const c of S.customers){ c.state='leaving'; c.tx=d.x+.5; c.ty=1.25; }
+    addLog('Store is now CLOSED. Current shoppers will leave.');
+  } else addLog('Store is now OPEN.');
+  save();
+}
+
+function interact(){
+  const near = nearEntities();
+  const sign = near.find(e => e.kind === 'sign');
+  if(sign){ toggleOpen(); return; }
+  const rack = near.find(e => e.kind === 'rack');
+  if(rack){ stockPanel(); return; }
+  const door = near.find(e => e.kind === 'door');
+  if(door){ toggleOpen(); return; }
+  addLog('Nothing nearby to interact with.');
+}
+
+$('use').onclick = interact;
+$('btnPC').onclick = computerPanel;
+$('btnSales').onclick = salesPanel;
+$('btnStock').onclick = stockPanel;
+$('btnCust').onclick = customersPanel;
+$('btnSkill').onclick = skillsPanel;
+$('btnLog').onclick = logPanel;
+$('btnMenu').onclick = function(){
+  modal('☰ Menu', '<div class="cols2">' +
+    '<button onclick="save();closeModal()">💾 Save</button>' +
+    '<button onclick="endDay()">🌙 End Day</button>' +
+    '<button onclick="toggleOpen();closeModal()">🚪 Toggle Open/Closed</button>' +
+    '<button onclick="if(confirm(\'Reset save?\')){localStorage.removeItem(\''+SAVE_KEY+'\');location.reload()}">🗑 Reset</button>' +
+  '</div>');
+};
+
+window.toggleOpen = toggleOpen;
+window.save = save;
+
+ui.camBtn.onclick = () => ui.cam.classList.toggle('open');
+document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => { S.cam = (S.cam + Number(b.dataset.cam) + 8) % 8; save(); });
+document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => { S.cam = CAMS.indexOf(b.dataset.set); ui.cam.classList.remove('open'); save(); });
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = 1;
+  if(e.key === 'Escape') cancelPlacing();
+});
+document.addEventListener('keyup', e => { keys[e.key] = 0; });
+document.querySelectorAll('[data-dir]').forEach(b => {
+  const dir = b.dataset.dir;
+  const on = ev => { ev.preventDefault(); ev.stopPropagation(); keys[dir] = 1; };
+  const off = ev => { if(ev){ ev.preventDefault(); ev.stopPropagation(); } keys[dir] = 0; };
+  b.addEventListener('pointerdown', on, {passive:false});
+  b.addEventListener('pointerup', off, {passive:false});
+  b.addEventListener('pointercancel', off, {passive:false});
+  b.addEventListener('pointerleave', off, {passive:false});
+  b.addEventListener('contextmenu', ev => ev.preventDefault());
+});
+
+document.addEventListener('selectstart', e => {
+  if(e.target.closest('.dpad') || e.target.closest('.acts') || e.target.closest('#use')) e.preventDefault();
+});
+
+save();
+</script>
+</body>
+</html>
