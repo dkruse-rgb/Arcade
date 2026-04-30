@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel & Pages v8</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#111;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}iframe{border:0;width:100%;height:100%;display:block;background:#111}.loading{position:fixed;inset:0;display:grid;place-items:center;color:#f5c842;background:#111;font-family:system-ui,sans-serif;z-index:2;text-align:center}.loading.hide{display:none}
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><div><h1>Loading Panel & Pages…</h1><p>Movement and mobile-control polish</p></div></div>
+<iframe id="gameFrame" src="panel-pages-v7.html?v=12"></iframe>
+<script>
+const frame=document.getElementById('gameFrame');
+const loading=document.getElementById('loading');
+frame.addEventListener('load',()=>{
+  try{
+    const w=frame.contentWindow;
+    w.eval(`
+      (function(){
+        if(window.__pp_v8_patch)return;
+        window.__pp_v8_patch=true;
+
+        const style=document.createElement('style');
+        style.textContent='*{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}button,.dpad,.acts,#use,.tray{touch-action:none!important}canvas{touch-action:none!important}.dpad button{font-size:0!important;position:relative}.dpad button::after{font-size:18px;line-height:1;display:block}.dpad button[data-dir="up"]::after{content:"▲"}.dpad button[data-dir="down"]::after{content:"▼"}.dpad button[data-dir="left"]::after{content:"◀"}.dpad button[data-dir="right"]::after{content:"▶"}';
+        document.head.appendChild(style);
+
+        document.addEventListener('selectstart',function(e){if(e.target.closest&&e.target.closest('.dpad,.acts,#use,.tray,button,canvas'))e.preventDefault();},{capture:true});
+        document.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('.dpad,.acts,#use,.tray,button,canvas'))e.preventDefault();},{capture:true});
+        document.addEventListener('dragstart',function(e){if(e.target.closest&&e.target.closest('.dpad,.acts,#use,.tray,button,canvas'))e.preventDefault();},{capture:true});
+
+        // Loosen movement bounds so the character can use the visible floor without invisible border bumps.
+        canWalk=function(x,y){
+          return x>0.05&&y>0.05&&x<W()-0.05&&y<H()-0.05&&!blocked(x,y);
+        };
+
+        // Make the non-walkable border visually obvious and add an interior walkable-floor outline.
+        const oldDraw=draw;
+        draw=function(){
+          oldDraw();
+          C.save();
+          C.globalAlpha=0.42;
+          C.strokeStyle='#f5c84255';
+          C.lineWidth=2;
+          const pts=[p(0.08,0.08),p(W()-0.08,0.08),p(W()-0.08,H()-0.08),p(0.08,H()-0.08)];
+          C.beginPath();C.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)C.lineTo(pts[i].x,pts[i].y);C.closePath();C.stroke();
+          C.globalAlpha=0.22;
+          C.fillStyle='#000';
+          // soft edge markers on the border so it reads as a boundary, not a floor tile
+          for(let x=0;x<W();x++){
+            [p(x+.5,0.12),p(x+.5,H()-0.12)].forEach(q=>{C.beginPath();C.arc(q.x,q.y,3,0,Math.PI*2);C.fill();});
+          }
+          for(let y=0;y<H();y++){
+            [p(0.12,y+.5),p(W()-0.12,y+.5)].forEach(q=>{C.beginPath();C.arc(q.x,q.y,3,0,Math.PI*2);C.fill();});
+          }
+          C.restore();
+        };
+
+        // Cancel any stuck text selections immediately.
+        setInterval(()=>{try{getSelection&&getSelection().removeAllRanges();}catch(e){}},500);
+      })();
+    `);
+  }catch(err){
+    document.body.insertAdjacentHTML('beforeend','<pre style="position:fixed;inset:1rem;color:#f5c842;background:#111;z-index:3;white-space:pre-wrap">Patch failed: '+String(err)+'</pre>');
+  }finally{
+    loading.classList.add('hide');
+  }
+});
+</script>
+</body>
+</html>
