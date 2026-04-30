@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel & Pages v7</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#111}iframe{border:0;width:100%;height:100%;display:block;background:#111}.loading{position:fixed;inset:0;display:grid;place-items:center;color:#f5c842;background:#111;font-family:system-ui,sans-serif;z-index:2;text-align:center}.loading.hide{display:none}
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><div><h1>Loading Panel & Pages…</h1><p>Rack placement safety patch</p></div></div>
+<iframe id="gameFrame" src="panel-pages-v6.html?v=10"></iframe>
+<script>
+const frame=document.getElementById('gameFrame');
+const loading=document.getElementById('loading');
+frame.addEventListener('load',()=>{
+  try{
+    const w=frame.contentWindow;
+    w.eval(`
+      (function(){
+        if(window.__pp_v7_patch)return;
+        window.__pp_v7_patch=true;
+
+        // Refund the broken v6 state: money spent, no rack placed.
+        if(S && Array.isArray(S.racks) && S.racks.length===0 && S.cash<100){
+          S.cash=500;
+          S.log=['Refunded money from failed rack placement bug.',...(S.log||[])].slice(0,25);
+          save();
+        }
+
+        // Ordering a rack now starts placement mode only. No cash is removed yet.
+        buyRack=function(k){
+          let r=RACKS[k];
+          if(!r)return;
+          if(S.cash<r.price){addLog('Need '+money(r.price)+' for '+r.name+'.');return;}
+          placing={rack:k};
+          ghost=null;
+          document.getElementById('place').textContent='Tap a valid floor tile to place '+r.name+' — no cash spent until placed';
+          document.getElementById('place').classList.add('show');
+          closeModal();
+        };
+        window.buyRack=buyRack;
+
+        // Capture the placement click before the old v6 handler.
+        G.addEventListener('pointerdown',function(e){
+          if(!placing)return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          let rect=G.getBoundingClientRect();
+          let t=toTile(e.clientX-rect.left,e.clientY-rect.top);
+          if(!t){addLog('Could not place there — no cash spent.');return;}
+
+          let id=placing.rack || (S.racks[placing.idx] && S.racks[placing.idx].id);
+          let rd=RACKS[id];
+          if(!rd){placing=null;ghost=null;document.getElementById('place').classList.remove('show');return;}
+
+          if(!inShop(t.tx,t.ty,rd.w,rd.h) || placeBlocked(t.tx,t.ty,rd.w,rd.h,placing.idx)){
+            addLog('That spot is blocked — no cash spent. Try another tile.');
+            return;
+          }
+
+          if(placing.rack){
+            if(S.cash<rd.price){addLog('Need '+money(rd.price)+' for '+rd.name+'.');return;}
+            S.cash-=rd.price;
+            S.racks.push({id:id,x:t.tx,y:t.ty});
+            addLog('Placed '+rd.name+' for '+money(rd.price)+'.');
+          }else{
+            S.racks[placing.idx].x=t.tx;
+            S.racks[placing.idx].y=t.ty;
+            addLog('Moved '+rd.name+'.');
+          }
+
+          placing=null;
+          ghost=null;
+          document.getElementById('place').classList.remove('show');
+          save();
+        },true);
+
+        // Interact cancels placement instead of trapping the player.
+        document.getElementById('use').onclick=function(){
+          if(placing){
+            placing=null;
+            ghost=null;
+            document.getElementById('place').classList.remove('show');
+            addLog('Rack placement canceled — no cash spent.');
+            return;
+          }
+          useNear();
+        };
+      })();
+    `);
+  }catch(err){
+    console.error(err);
+    document.body.insertAdjacentHTML('beforeend','<pre style="position:fixed;inset:1rem;color:#f5c842;background:#111;z-index:3;white-space:pre-wrap">Patch failed: '+String(err)+'</pre>');
+  }finally{
+    loading.classList.add('hide');
+  }
+});
+</script>
+</body>
+</html>
